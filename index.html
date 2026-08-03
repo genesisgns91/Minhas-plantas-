@@ -233,6 +233,18 @@
       font-style: italic;
     }
 
+    .species-care-text {
+      font-size: 0.82rem;
+      line-height: 1.5;
+      color: var(--ink);
+      white-space: pre-line;
+      background: var(--cream);
+      padding: 0.8rem;
+      border-radius: 10px;
+      max-height: 250px;
+      overflow-y: auto;
+    }
+
     .pet-badge {
       display: inline-flex;
       align-items: center;
@@ -275,7 +287,7 @@
     .drawer {
       background: var(--white);
       width: 100%;
-      max-width: 500px;
+      max-width: 550px;
       height: 100%;
       padding: 2rem;
       overflow-y: auto;
@@ -333,15 +345,16 @@
       background: linear-gradient(135deg, #6b8e63 0%, #3a5335 100%);
       color: white;
       border: none;
-      padding: 0.6rem 1rem;
+      padding: 0.7rem 1rem;
       border-radius: 8px;
-      font-size: 0.8rem;
+      font-size: 0.85rem;
       font-weight: 600;
       cursor: pointer;
       display: flex;
       align-items: center;
+      justify-content: center;
       gap: 0.4rem;
-      margin-top: 0.3rem;
+      margin-top: 0.5rem;
     }
 
     @media (max-width: 768px) {
@@ -351,7 +364,7 @@
       .modal-overlay { align-items: flex-end; }
       .drawer {
         max-width: 100%;
-        height: 88vh;
+        height: 90vh;
         border-radius: 20px 20px 0 0;
         transform: translateY(100%);
       }
@@ -378,7 +391,7 @@
         <div class="header-bar">
           <div class="header-title">
             <h2>Coleção de Plantas</h2>
-            <p>☁️ Powered by Cloudflare Workers & Gemini</p>
+            <p>☁️ Powered by Cloudflare Workers & Gemini IA</p>
           </div>
           <button class="btn-primary" onclick="openDrawer('drawerAddSpecies')">
             <span>+</span> Nova Planta
@@ -392,7 +405,7 @@
         <div class="header-bar">
           <div class="header-title">
             <h2>Análise de Saúde com IA 🩺</h2>
-            <p>Envie uma foto da sua planta para diagnóstico</p>
+            <p>Envie uma foto da sua planta para diagnóstico completo e dicas</p>
           </div>
         </div>
 
@@ -432,9 +445,9 @@
       <form id="formSpecies" onsubmit="saveSpecies(event)">
         <div class="form-group">
           <label>Nome Popular</label>
-          <input type="text" id="specieName" class="form-control" placeholder="Ex: Jiboia, Monstera..." required />
+          <input type="text" id="specieName" class="form-control" placeholder="Ex: Jiboia, Monstera, Suculenta..." required />
           <button type="button" class="btn-ai-autofill" onclick="autoFillWithAI()">
-            ✨ Preencher Cuidados com IA
+            ✨ Gerar Ficha Completa de Cuidados com IA
           </button>
         </div>
 
@@ -449,8 +462,8 @@
         </div>
 
         <div class="form-group">
-          <label>Cuidados & Solo</label>
-          <textarea id="specieCare" class="form-control" rows="3" placeholder="Solo drenável, luz indireta..."></textarea>
+          <label>Ficha Técnica & Cuidados Avançados</label>
+          <textarea id="specieCare" class="form-control" rows="10" placeholder="A IA preencherá automaticamente com Categoria, Luz/Sol, Adubação Caseira, Poda, Umidade e Dicas..."></textarea>
         </div>
 
         <div class="form-group">
@@ -470,7 +483,6 @@
   </div>
 
   <script>
-    // URL do seu Cloudflare Worker
     const WORKER_URL = "https://shiny-sky-21dd.genesisgns.workers.dev/";
 
     let speciesData = [
@@ -480,7 +492,8 @@
         scientific: "Epipremnum aureum",
         emoji: "🌿",
         waterDays: 5,
-        petSafety: "toxic"
+        petSafety: "toxic",
+        care: "🏷️ CATEGORIA: Trepadeira / Ornamental folhosa\n☀️ ILUMINAÇÃO: Luz Indireta Filtrada (4h a 6h diárias). Sol direto queima as folhas.\n💧 REGA: Nível Moderado (a cada 5 dias)\n✂️ PODA: Regular para controle de tamanho\n🌫️ UMIDADE DO AR: Ama alta umidade. Pode borrifar folhas.\n🪴 SOLO: Substrato orgânico e drenável\n🧪 ADUBAÇÃO COMERCIAL: NPK 10-10-10 mensal\n🍌 ADUBAÇÃO NATURAL: Chá de casca de banana e borra de café curtida\n✨ DICA EXTRA: Limpe as folhas com pano úmido para melhorar a fotossíntese."
       }
     ];
 
@@ -541,28 +554,42 @@
               </div>
             </div>
           </div>
+          ${item.care ? `<div class="species-care-text">${item.care}</div>` : ''}
         `;
         container.appendChild(card);
       });
     }
 
-    // Preenchimento de Dicas via IA no Worker
     async function autoFillWithAI() {
       const name = document.getElementById('specieName').value;
       if (!name) return alert('Digite o nome da planta primeiro!');
 
       const btn = document.querySelector('.btn-ai-autofill');
-      btn.innerText = "⏳ Consultando Gemini...";
+      btn.innerText = "⏳ Gerando Ficha Completa...";
       btn.disabled = true;
 
       const prompt = `
-      Você é um botânico especialista. Forneça dados de cultivo sobre a planta '${name}'.
-      Responda EXCLUSIVAMENTE em formato JSON VÁLIDO sem markdown:
+      Você é um botânico e agrônomo especialista. Forneça uma ficha botânica completa e ultra detalhada sobre a planta '${name}'.
+      Responda EXCLUSIVAMENTE em formato JSON VÁLIDO sem marcações de código markdown (sem \`\`\`json):
+
       {
-          "scientific_name": "Nome científico exato",
-          "water_days": 5,
-          "soil": "Recomendação de solo e rega",
-          "pet_toxic": true
+        "scientific_name": "Nome científico exato com autoria se aplicável",
+        "category": "Ex: Ornamental folhosa, Suculenta / Cacto, Tropical úmida, Comestível / Erva, Trepadeira, Epífita, Frutífera",
+        "water_days": 5,
+        "water_need": "Muito Baixa / Baixa / Moderada / Alta / Muito Alta",
+        "light": "Sol Pleno / Meia Sombra / Sombra / Luz Indireta Filtrada",
+        "light_hours": "Ex: 4 a 6 horas de luz por dia",
+        "direct_sun_on_leaf": "Sim/Não (e se queima as folhas facilmente)",
+        "pruning_tolerance": "Constante / Regular / Moderada / Baixa / Nunca podar",
+        "air_humidity": "Ex: Ama alta umidade (>60%), Borrifar apenas folhas (nunca flores), Prefere clima seco, Não borrifar nunca",
+        "soil_type": "Ex: Substrato altamente drenável com perlita e areia / Orgânico e rico em húmus",
+        "fertilizer_freq": "Semanal / A cada rega / Mensal / A cada estação / 1x ao ano / Nunca",
+        "fertilizer_type": "Ex: NPK 10-10-10 para folhagem, NPK 04-14-08 para flor, Húmus de Minhoca, Torta de Mamona, Farinha de Ossos",
+        "natural_fertilizer": "Ex: Chá de casca de banana (Potássio), Borra de café curtida (Nitrogênio), Água do cozimento de ovos, Casca de ovo moída (Cálcio), Água de arroz",
+        "extra_tips": "Dica de ouro de cultivo e manutenção",
+        "observations": "O que NUNCA fazer, principais pragas sensíveis e sinais de estresse",
+        "pet_toxic": true,
+        "pet_warning": "Explicação detalhada sobre toxidade para cães e gatos e sintomas"
       }
       `;
 
@@ -579,22 +606,36 @@
           const cleanedText = data.resposta.replace(/```json/g, '').replace(/```/g, '').trim();
           const parsed = JSON.parse(cleanedText);
 
-          document.getElementById('specieScientific').value = parsed.scientific_name || '';
-          document.getElementById('specieWaterDays').value = parsed.water_days || 5;
-          document.getElementById('specieCare').value = parsed.soil || '';
-          document.getElementById('speciePetSafety').value = parsed.pet_toxic ? 'toxic' : 'safe';
+          if (document.getElementById('specieScientific')) document.getElementById('specieScientific').value = parsed.scientific_name || '';
+          if (document.getElementById('specieWaterDays')) document.getElementById('specieWaterDays').value = parsed.water_days || 5;
+          if (document.getElementById('speciePetSafety')) document.getElementById('speciePetSafety').value = parsed.pet_toxic ? 'toxic' : 'safe';
+
+          const fullCareDetails = `🏷️ CATEGORIA: ${parsed.category || 'N/A'}
+☀️ ILUMINAÇÃO: ${parsed.light} (${parsed.light_hours}). Sol direto na folha: ${parsed.direct_sun_on_leaf}
+💧 REGA: Nível ${parsed.water_need} (Frequência média: a cada ${parsed.water_days} dias)
+✂️ PODA: ${parsed.pruning_tolerance}
+🌫️ UMIDADE DO AR: ${parsed.air_humidity}
+🪴 SOLO: ${parsed.soil_type}
+🧪 ADUBAÇÃO COMERCIAL: ${parsed.fertilizer_type} (${parsed.fertilizer_freq})
+🍌 ADUBAÇÃO NATURAL: ${parsed.natural_fertilizer}
+✨ DICA EXTRA: ${parsed.extra_tips}
+⚠️ OBSERVAÇÕES: ${parsed.observations}
+🐾 ALERTA PETS: ${parsed.pet_warning}`;
+
+          if (document.getElementById('specieCare')) {
+            document.getElementById('specieCare').value = fullCareDetails;
+          }
         } else {
-          alert('Erro: ' + (data.error || 'Falha na resposta'));
+          alert('Erro ao consultar IA: ' + (data.error || 'Falha na resposta'));
         }
       } catch (err) {
-        alert("Erro de comunicação com o Cloudflare Worker.");
+        alert("Erro ao processar dados da planta com a IA.");
       } finally {
-        btn.innerText = "✨ Preencher Cuidados com IA";
+        btn.innerText = "✨ Gerar Ficha Completa de Cuidados com IA";
         btn.disabled = false;
       }
     }
 
-    // Helper para converter imagem para Base64
     function fileToBase64(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -607,7 +648,6 @@
       });
     }
 
-    // Diagnóstico por Foto via IA no Worker
     async function runAIDiagnosis() {
       const fileInput = document.getElementById('aiImageInput');
       const resultDiv = document.getElementById('aiResult');
@@ -618,11 +658,20 @@
 
       const file = fileInput.files[0];
       resultDiv.style.display = 'block';
-      resultDiv.innerHTML = "⏳ <b>Analisando a foto da planta via Cloudflare Worker... Aguarde.</b>";
+      resultDiv.innerHTML = "⏳ <b>Analisando detalhes botânicos e saúde da foto... Aguarde.</b>";
 
       try {
         const base64 = await fileToBase64(file);
-        const prompt = "Você é um agrônomo especialista em saúde foliar. Analise visualmente a foto desta planta, aponte problemas de rega, luz ou pragas e forneça um plano de cuidado em tópicos simples.";
+        const prompt = `
+        Você é um agrônomo e fitopatologista. Faça um diagnóstico completo da planta contida nesta imagem.
+        Forneça o relatório formatado nos seguintes tópicos claros:
+
+        1. **Identificação Provável**: Nome popular e científico da planta.
+        2. **Análise de Saúde Visual**: Estado das folhas, caule e sinais de fungos, pragas (cochonilha, ácaro, pulgão) ou queimaduras.
+        3. **Diagnóstico de Irrigação e Luz**: Indícios de excesso/falta de água ou falta/excesso de sol.
+        4. **Plano de Ação e Tratamento**: O que fazer imediatamente (podas de limpeza, troca de vaso, produtos de controle ou receitas caseiras como calda de sabão/óleo de neem).
+        5. **Recomendações de Adubação Natural e Cuidados**: Dicas específicas de rega, sol direto na folha e adubação para recuperar a planta.
+        `;
 
         const response = await fetch(WORKER_URL, {
           method: 'POST',
@@ -638,8 +687,8 @@
 
         if (response.ok && data.resposta) {
           resultDiv.innerHTML = `
-            <h4>🩺 Relatório de Saúde:</h4>
-            <div style="white-space: pre-line; margin-top: 0.8rem;">${data.resposta}</div>
+            <h4>🩺 Relatório Agronômico Completo:</h4>
+            <div style="white-space: pre-line; margin-top: 0.8rem; line-height: 1.6;">${data.resposta}</div>
           `;
         } else {
           resultDiv.innerHTML = `❌ Erro na análise: ${data.error || 'Falha ao processar'}`;
@@ -657,7 +706,8 @@
         scientific: document.getElementById('specieScientific').value,
         emoji: "🪴",
         waterDays: document.getElementById('specieWaterDays').value,
-        petSafety: document.getElementById('speciePetSafety').value
+        petSafety: document.getElementById('speciePetSafety').value,
+        care: document.getElementById('specieCare').value
       };
 
       speciesData.unshift(newSpecies);
