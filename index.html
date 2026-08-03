@@ -25,513 +25,85 @@
       --radius: 16px;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      -webkit-tap-highlight-color: transparent;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { font-family: 'DM Sans', sans-serif; background-color: var(--cream); color: var(--ink); min-height: 100vh; display: flex; flex-direction: column; }
 
-    body {
-      font-family: 'DM Sans', sans-serif;
-      background-color: var(--cream);
-      color: var(--ink);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow-x: hidden;
-    }
+    .app-layout { display: flex; flex: 1; width: 100%; max-width: 1400px; margin: 0 auto; }
+    
+    /* SIDEBAR NAV */
+    .sidebar { width: 280px; background: var(--moss); color: var(--white); padding: 2rem 1.5rem; display: flex; flex-direction: column; gap: 2rem; flex-shrink: 0; }
+    .brand { display: flex; align-items: center; gap: 0.75rem; }
+    .brand h1 { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; }
+    .nav-btn { display: flex; align-items: center; gap: 0.8rem; padding: 0.85rem 1rem; border: none; background: transparent; color: rgba(255, 255, 255, 0.8); font-size: 0.95rem; font-weight: 500; border-radius: 12px; cursor: pointer; text-align: left; transition: all 0.2s; width: 100%; }
+    .nav-btn:hover, .nav-btn.active { background: rgba(255, 255, 255, 0.15); color: var(--white); }
 
-    .app-layout {
-      display: flex;
-      flex: 1;
-      width: 100%;
-      max-width: 1400px;
-      margin: 0 auto;
-    }
+    .main-content { flex: 1; padding: 2rem; padding-bottom: 6rem; max-width: 1100px; }
+    .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+    .header-title h2 { font-family: 'Playfair Display', serif; font-size: 2rem; color: var(--moss); }
+    .header-title p { font-size: 0.88rem; color: var(--gold); }
 
-    /* BARRA LATERAL (DESKTOP) */
-    .sidebar {
-      width: 280px;
-      background: var(--moss);
-      color: var(--white);
-      padding: 2rem 1.5rem;
-      display: flex;
-      flex-direction: column;
-      gap: 2rem;
-      flex-shrink: 0;
-    }
+    /* DASHBOARD HEADERS & STATS */
+    .dashboard-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .stat-card { background: var(--white); padding: 1rem; border-radius: var(--radius); box-shadow: var(--shadow); display: flex; align-items: center; gap: 0.8rem; border: 1px solid rgba(0,0,0,0.03); }
+    .stat-icon { font-size: 1.8rem; background: var(--cream); padding: 0.5rem; border-radius: 12px; line-height: 1; }
+    .stat-info .value { font-size: 1.4rem; font-weight: 700; color: var(--moss); }
+    .stat-info .label { font-size: 0.75rem; color: var(--sage); font-weight: 600; }
 
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
+    .reminders-section { background: var(--white); padding: 1.25rem; border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 2rem; border-left: 5px solid var(--terra); }
+    .reminders-header { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: var(--moss); margin-bottom: 0.8rem; display: flex; align-items: center; gap: 0.5rem; }
+    .reminder-item { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0.8rem; background: var(--cream); border-radius: 8px; font-size: 0.85rem; margin-bottom: 0.4rem; }
 
-    .brand h1 {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.5rem;
-      font-weight: 700;
-    }
+    .btn-primary { background: var(--terra); color: var(--white); border: none; padding: 0.75rem 1.4rem; border-radius: 50px; font-weight: 600; font-size: 0.9rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; box-shadow: 0 4px 12px rgba(193, 110, 65, 0.3); transition: transform 0.2s, background 0.2s; }
+    .btn-primary:hover { transform: translateY(-2px); background: #b05f34; }
+    .btn-secondary { background: var(--sage); color: white; border: none; padding: 0.5rem 0.8rem; border-radius: 8px; font-weight: 600; font-size: 0.8rem; cursor: pointer; }
+    .btn-icon { background: none; border: none; color: #aaa; font-size: 1.1rem; cursor: pointer; padding: 0.2rem; }
+    .btn-icon:hover { color: var(--moss); }
 
-    .nav-links {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
+    /* GRIDS & CARDS */
+    .species-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
+    .species-card { background: var(--white); border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow); cursor: pointer; transition: transform 0.2s; position: relative; border: 1px solid rgba(0,0,0,0.04); }
+    .species-card:hover { transform: translateY(-4px); }
 
-    .nav-btn {
-      display: flex;
-      align-items: center;
-      gap: 0.8rem;
-      padding: 0.85rem 1rem;
-      border: none;
-      background: transparent;
-      color: rgba(255, 255, 255, 0.8);
-      font-size: 0.95rem;
-      font-weight: 500;
-      border-radius: 12px;
-      cursor: pointer;
-      text-align: left;
-      transition: all 0.2s ease;
-    }
+    .vases-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.2rem; margin-top: 1rem; }
+    .vase-card { background: var(--white); border-radius: 12px; padding: 1.2rem; border: 1px solid var(--mist); display: flex; flex-direction: column; gap: 0.8rem; box-shadow: var(--shadow); }
+    .vase-img { width: 100%; height: 180px; object-fit: cover; border-radius: 8px; background: var(--mist); }
 
-    .nav-btn:hover, .nav-btn.active {
-      background: rgba(255, 255, 255, 0.15);
-      color: var(--white);
-    }
+    /* CARDS MINIMALISTAS DE CUIDADOS DA ESPÉCIE */
+    .care-badges-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 0.6rem; margin-top: 0.6rem; }
+    .care-badge-item { background: var(--cream); border: 1px solid var(--mist); padding: 0.6rem 0.8rem; border-radius: 10px; display: flex; flex-direction: column; gap: 0.2rem; }
+    .care-badge-label { font-size: 0.65rem; font-weight: 700; color: var(--sage); text-transform: uppercase; letter-spacing: 0.03em; }
+    .care-badge-val { font-size: 0.78rem; color: var(--ink); font-weight: 500; word-break: break-word; }
 
-    /* BARRA INFERIOR (MOBILE) */
-    .bottom-nav {
-      display: none;
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: var(--white);
-      border-top: 1px solid var(--mist);
-      padding: 0.6rem 1rem env(safe-area-inset-bottom);
-      z-index: 100;
-      justify-content: space-around;
-      box-shadow: 0 -4px 16px rgba(0,0,0,0.05);
-    }
+    /* TIMELINE DE CUIDADOS CRONOLÓGICA */
+    .timeline { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.6rem; max-height: 220px; overflow-y: auto; }
+    .timeline-item { display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.6rem; background: var(--cream); border-radius: 8px; font-size: 0.8rem; }
+    .timeline-date { font-size: 0.7rem; color: var(--sage); font-weight: 600; }
 
-    .bottom-nav .nav-btn {
-      flex-direction: column;
-      gap: 0.25rem;
-      font-size: 0.7rem;
-      color: var(--ink);
-      opacity: 0.6;
-      padding: 0.4rem;
-      align-items: center;
-    }
+    /* MINI CHART */
+    .mini-chart-container { background: var(--cream); border-radius: 10px; padding: 0.8rem; margin-top: 0.4rem; }
+    .mini-chart-title { font-size: 0.7rem; font-weight: 700; color: var(--moss); margin-bottom: 0.4rem; text-transform: uppercase; }
 
-    .bottom-nav .nav-btn.active {
-      background: transparent;
-      opacity: 1;
-      color: var(--moss);
-      font-weight: 700;
-    }
+    /* DRAWER / MODAL */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(28, 36, 27, 0.4); backdrop-filter: blur(4px); z-index: 200; display: flex; justify-content: flex-end; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+    .modal-overlay.active { opacity: 1; pointer-events: auto; }
+    .drawer { background: var(--white); width: 100%; max-width: 650px; height: 100%; padding: 2rem; overflow-y: auto; transform: translateX(100%); transition: transform 0.3s; display: flex; flex-direction: column; gap: 1.5rem; }
+    .modal-overlay.active .drawer { transform: translateX(0); }
+    .drawer-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--mist); padding-bottom: 1rem; }
+    .btn-close { background: transparent; border: none; font-size: 1.5rem; cursor: pointer; }
 
-    /* CONTEÚDO PRINCIPAL */
-    .main-content {
-      flex: 1;
-      padding: 2rem;
-      padding-bottom: 6rem;
-      max-width: 1100px;
-    }
+    .form-group { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem; }
+    .form-group label { font-size: 0.8rem; font-weight: 700; color: var(--moss); text-transform: uppercase; }
+    .form-control { padding: 0.8rem 1rem; border: 1.5px solid var(--mist); border-radius: 10px; font-family: inherit; font-size: 0.9rem; outline: none; }
+    .form-section-title { font-size: 0.85rem; font-weight: 700; color: var(--terra); border-bottom: 1px solid var(--mist); padding-bottom: 0.4rem; margin-top: 1rem; margin-bottom: 0.8rem; }
 
-    .header-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 2rem;
-      flex-wrap: wrap;
-      gap: 1rem;
-    }
-
-    .header-title h2 {
-      font-family: 'Playfair Display', serif;
-      font-size: 2rem;
-      color: var(--moss);
-    }
-
-    .header-title p {
-      font-size: 0.88rem;
-      color: var(--gold);
-    }
-
-    /* STATS DASHBOARD */
-    .dashboard-stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 1rem;
-      margin-bottom: 2rem;
-    }
-
-    .stat-card {
-      background: var(--white);
-      padding: 1.2rem;
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      border: 1px solid rgba(0,0,0,0.03);
-    }
-
-    .stat-icon {
-      font-size: 2rem;
-      background: var(--cream);
-      padding: 0.6rem;
-      border-radius: 12px;
-      line-height: 1;
-    }
-
-    .stat-info .value {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: var(--moss);
-    }
-
-    .stat-info .label {
-      font-size: 0.78rem;
-      color: var(--sage);
-      font-weight: 600;
-    }
-
-    .reminders-section {
-      background: var(--white);
-      padding: 1.25rem;
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      margin-bottom: 2rem;
-      border-left: 5px solid var(--terra);
-    }
-
-    .reminders-header {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.1rem;
-      color: var(--moss);
-      margin-bottom: 0.8rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .reminder-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.6rem 0.8rem;
-      background: var(--cream);
-      border-radius: 8px;
-      font-size: 0.85rem;
-      margin-bottom: 0.5rem;
-    }
-
-    .btn-primary {
-      background: var(--terra);
-      color: var(--white);
-      border: none;
-      padding: 0.75rem 1.4rem;
-      border-radius: 50px;
-      font-weight: 600;
-      font-size: 0.9rem;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      box-shadow: 0 4px 12px rgba(193, 110, 65, 0.3);
-      transition: transform 0.2s, background 0.2s;
-    }
-
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      background: #b05f34;
-    }
-
-    /* GRID DE ESPÉCIES E VASOS */
-    .grid-container {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-      gap: 1.5rem;
-    }
-
-    .card {
-      background: var(--white);
-      border-radius: var(--radius);
-      padding: 1.25rem;
-      box-shadow: var(--shadow);
-      border: 1px solid rgba(0, 0, 0, 0.04);
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      position: relative;
-    }
-
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-    }
-
-    .card-info {
-      display: flex;
-      align-items: center;
-      gap: 0.8rem;
-    }
-
-    .card-emoji {
-      font-size: 2.2rem;
-      background: var(--cream);
-      padding: 0.5rem;
-      border-radius: 12px;
-      line-height: 1;
-    }
-
-    .card-title {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.15rem;
-      font-weight: 700;
-      color: var(--ink);
-    }
-
-    .card-subtitle {
-      font-size: 0.75rem;
-      color: var(--sage);
-      font-style: italic;
-    }
-
-    /* GRID MINIMALISTA DE CARDS DE CUIDADOS DA ESPÉCIE */
-    .care-badges-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap: 0.6rem;
-      margin-top: 0.4rem;
-    }
-
-    .care-badge-item {
-      background: var(--cream);
-      border: 1px solid var(--mist);
-      padding: 0.6rem 0.8rem;
-      border-radius: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-    }
-
-    .care-badge-label {
-      font-size: 0.68rem;
-      font-weight: 700;
-      color: var(--sage);
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-    }
-
-    .care-badge-val {
-      font-size: 0.78rem;
-      color: var(--ink);
-      font-weight: 500;
-      word-break: break-word;
-    }
-
-    .pet-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.3rem;
-      font-size: 0.7rem;
-      font-weight: 700;
-      padding: 0.25rem 0.6rem;
-      border-radius: 50px;
-      margin-top: 0.4rem;
-    }
-
-    .pet-badge.toxic {
-      background: #fde8e8;
-      color: var(--red-alert);
-    }
-
-    .pet-badge.safe {
-      background: #e8f5e9;
-      color: #2e7d32;
-    }
-
-    .btn-delete-card {
-      background: transparent;
-      border: none;
-      color: #aaa;
-      font-size: 1.2rem;
-      cursor: pointer;
-      position: absolute;
-      top: 1rem;
-      right: 1rem;
-    }
-
-    .btn-delete-card:hover {
-      color: var(--red-alert);
-    }
-
-    /* PAINEL LATERAL / DRAWER */
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(28, 36, 27, 0.4);
-      backdrop-filter: blur(4px);
-      z-index: 200;
-      display: flex;
-      justify-content: flex-end;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.3s ease;
-    }
-
-    .modal-overlay.active {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .drawer {
-      background: var(--white);
-      width: 100%;
-      max-width: 600px;
-      height: 100%;
-      padding: 2rem;
-      overflow-y: auto;
-      transform: translateX(100%);
-      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-      display: flex;
-      flex-direction: column;
-      gap: 1.5rem;
-    }
-
-    .modal-overlay.active .drawer {
-      transform: translateX(0);
-    }
-
-    .drawer-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid var(--mist);
-      padding-bottom: 1rem;
-    }
-
-    .btn-close {
-      background: transparent;
-      border: none;
-      font-size: 1.5rem;
-      cursor: pointer;
-      color: var(--ink);
-    }
-
-    .form-group {
-      display: flex;
-      flex-direction: column;
-      gap: 0.4rem;
-      margin-bottom: 1rem;
-    }
-
-    .form-group label {
-      font-size: 0.8rem;
-      font-weight: 700;
-      color: var(--moss);
-      text-transform: uppercase;
-    }
-
-    .form-control {
-      padding: 0.8rem 1rem;
-      border: 1.5px solid var(--mist);
-      border-radius: 10px;
-      font-family: inherit;
-      font-size: 0.9rem;
-      outline: none;
-    }
-
-    .btn-ai-autofill {
-      background: linear-gradient(135deg, #6b8e63 0%, #3a5335 100%);
-      color: white;
-      border: none;
-      padding: 0.75rem 1rem;
-      border-radius: 8px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.4rem;
-      margin-top: 0.5rem;
-    }
-
-    .form-section-title {
-      font-size: 0.88rem;
-      font-weight: 700;
-      color: var(--terra);
-      border-bottom: 1px solid var(--mist);
-      padding-bottom: 0.4rem;
-      margin-top: 1.2rem;
-      margin-bottom: 0.8rem;
-    }
-
-    /* TIMELINE DE CUIDADOS DO VASO */
-    .timeline {
-      display: flex;
-      flex-direction: column;
-      gap: 0.8rem;
-      margin-top: 1rem;
-    }
-
-    .timeline-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.8rem;
-      padding: 0.8rem;
-      background: var(--cream);
-      border-radius: 10px;
-      font-size: 0.85rem;
-    }
-
-    .timeline-icon {
-      font-size: 1.2rem;
-      background: var(--white);
-      padding: 0.3rem;
-      border-radius: 6px;
-    }
-
-    .timeline-date {
-      font-size: 0.72rem;
-      color: var(--sage);
-      font-weight: 600;
-    }
-
-    /* MINI CANVAS CHART */
-    .mini-chart-container {
-      background: var(--cream);
-      border-radius: 10px;
-      padding: 0.8rem;
-      margin-top: 0.5rem;
-    }
-
-    .mini-chart-title {
-      font-size: 0.72rem;
-      font-weight: 700;
-      color: var(--moss);
-      margin-bottom: 0.4rem;
-      text-transform: uppercase;
-    }
+    .bottom-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--white); border-top: 1px solid var(--mist); padding: 0.6rem; z-index: 100; justify-content: space-around; }
 
     @media (max-width: 768px) {
       .sidebar { display: none; }
       .bottom-nav { display: flex; }
-      .main-content { padding: 1.25rem; padding-bottom: 5.5rem; }
+      .main-content { padding: 1rem; padding-bottom: 5.5rem; }
+      .drawer { max-width: 100%; height: 95vh; border-radius: 20px 20px 0 0; transform: translateY(100%); }
       .modal-overlay { align-items: flex-end; }
-      .drawer {
-        max-width: 100%;
-        height: 92vh;
-        border-radius: 20px 20px 0 0;
-        transform: translateY(100%);
-      }
       .modal-overlay.active .drawer { transform: translateY(0); }
     }
   </style>
@@ -544,22 +116,23 @@
         <span style="font-size: 1.8rem;">🌿</span>
         <h1>Minhas Plantas</h1>
       </div>
-      <nav class="nav-links">
-        <button class="nav-btn active" onclick="switchTab('dashboard')">🏠 Dashboard</button>
-        <button class="nav-btn" onclick="switchTab('plants')">🌱 Espécies</button>
-        <button class="nav-btn" onclick="switchTab('pots')">🪴 Meus Vasos</button>
-        <button class="nav-btn" onclick="switchTab('ai')">🤖 IA Diagnóstico</button>
+      <nav>
+        <button class="nav-btn active" onclick="switchTab('species')">🌱 Espécies & Vasos</button>
+        <button class="nav-btn" onclick="switchTab('ai')">🤖 Diagnóstico IA</button>
       </nav>
     </aside>
 
     <main class="main-content">
       
-      <section id="sec-dashboard">
+      <section id="sec-species">
         <div class="header-bar">
           <div class="header-title">
-            <h2>Visão Geral</h2>
-            <p>☁️ Firebase + Cloudflare Workers IA</p>
+            <h2>Visão Geral & Coleção</h2>
+            <p>Selecione uma espécie para gerenciar seus vasos e histórico</p>
           </div>
+          <button class="btn-primary" onclick="openAddSpeciesModal()">
+            <span>+</span> Nova Espécie
+          </button>
         </div>
 
         <div class="dashboard-stats">
@@ -594,96 +167,83 @@
             <p style="color:#888; font-size:0.85rem;">Nenhum lembrete próximo no momento.</p>
           </div>
         </div>
-      </section>
 
-      <section id="sec-plants" style="display: none;">
-        <div class="header-bar">
-          <div class="header-title">
-            <h2>Coleção de Espécies</h2>
-            <p>Guia técnico botânico de cultivo</p>
-          </div>
-          <button class="btn-primary" onclick="openDrawer('drawerAddSpecies')">
-            <span>+</span> Nova Espécie
-          </button>
-        </div>
-
-        <div class="grid-container" id="speciesList">
+        <h3 style="color: var(--moss); font-family: 'Playfair Display', serif; margin-bottom: 1rem;">🌱 Minhas Espécies</h3>
+        <div class="species-grid" id="speciesGrid">
           <p style="color: #666;">Carregando espécies...</p>
         </div>
       </section>
 
-      <section id="sec-pots" style="display: none;">
-        <div class="header-bar">
+      <section id="sec-species-detail" style="display: none;">
+        <button onclick="backToSpecies()" style="background:none; border:none; color:var(--moss); font-weight:700; cursor:pointer; margin-bottom:1rem; font-size:1rem;">
+          ← Voltar para Espécies
+        </button>
+
+        <div class="header-bar" style="margin-bottom: 1rem;">
           <div class="header-title">
-            <h2>Meus Vasos & Acompanhamento</h2>
-            <p>Histórico individual e registro de cuidados</p>
+            <h2 id="detailSpeciesName">Nome da Espécie</h2>
+            <p id="detailSpeciesScientific" style="font-style: italic; color: var(--sage);"></p>
           </div>
-          <button class="btn-primary" onclick="openDrawer('drawerAddPot')">
-            <span>+</span> Novo Vaso
-          </button>
+          <div style="display:flex; gap:0.5rem;">
+            <button class="btn-secondary" onclick="editCurrentSpecies()">✏️ Editar Espécie</button>
+            <button class="btn-primary" onclick="openAddVaseModal()">🪴 Adicionar Vaso</button>
+          </div>
         </div>
 
-        <div class="grid-container" id="potsList">
-          <p style="color: #666;">Carregando vasos...</p>
+        <div style="background: var(--white); padding: 1.2rem; border-radius: var(--radius); margin-bottom: 2rem; box-shadow: var(--shadow);">
+          <h4 style="color: var(--moss); margin-bottom: 0.8rem; font-family: 'Playfair Display', serif;">📋 Guias & Ficha Técnica de Cultivo</h4>
+          <div class="care-badges-grid" id="detailSpeciesCareGrid"></div>
         </div>
+
+        <h3 style="color: var(--moss); font-family: 'Playfair Display', serif; margin-bottom: 1rem;">🪴 Vasos de <span id="detailSpeciesNameVases"></span></h3>
+        <div class="vases-grid" id="vasesGrid"></div>
       </section>
 
       <section id="sec-ai" style="display: none;">
         <div class="header-bar">
           <div class="header-title">
-            <h2>Análise de Saúde por Foto 🩺</h2>
-            <p>Diagnóstico agronômico com IA</p>
+            <h2>Diagnóstico de Saúde 🩺</h2>
+            <p>Envie uma foto para a IA analisar pragas ou deficiências</p>
           </div>
         </div>
-
         <div style="background: white; padding: 1.5rem; border-radius: var(--radius); box-shadow: var(--shadow);">
           <div class="form-group">
-            <label>Foto da Planta / Folha com Problema</label>
+            <label>Foto da Planta</label>
             <input type="file" id="aiImageInput" accept="image/*" class="form-control" />
           </div>
           <button class="btn-primary" style="width: 100%; justify-content: center;" onclick="runAIDiagnosis()">
-            🔍 Analisar Saúde com IA
+            🔍 Analisar com IA
           </button>
-
           <div id="aiResult" style="margin-top: 1.5rem; display: none; padding: 1.2rem; background: var(--cream); border-radius: 12px; line-height: 1.6;"></div>
         </div>
       </section>
-
     </main>
   </div>
 
   <nav class="bottom-nav">
-    <button class="nav-btn active" onclick="switchTab('dashboard')">
-      <span style="font-size: 1.2rem;">🏠</span>
-      Início
-    </button>
-    <button class="nav-btn" onclick="switchTab('plants')">
-      <span style="font-size: 1.2rem;">🌱</span>
-      Espécies
-    </button>
-    <button class="nav-btn" onclick="switchTab('pots')">
-      <span style="font-size: 1.2rem;">🪴</span>
-      Vasos
+    <button class="nav-btn active" onclick="switchTab('species')">
+      <span>🌱</span> Espécies
     </button>
     <button class="nav-btn" onclick="switchTab('ai')">
-      <span style="font-size: 1.2rem;">🤖</span>
-      IA Saúde
+      <span>🤖</span> Diagnóstico
     </button>
   </nav>
 
   <div class="modal-overlay" id="drawerAddSpecies">
     <div class="drawer">
       <div class="drawer-header">
-        <h3 style="font-family: 'Playfair Display', serif; color: var(--moss);">Cadastrar Espécie</h3>
+        <h3 id="speciesModalTitle" style="font-family: 'Playfair Display', serif; color: var(--moss);">Cadastrar Espécie</h3>
         <button class="btn-close" onclick="closeActiveDrawer()">&times;</button>
       </div>
 
       <form id="formSpecies" onsubmit="saveSpecies(event)">
+        <input type="hidden" id="speciesEditId" />
+
         <div class="form-group">
           <label>Nome Popular</label>
-          <input type="text" id="specieName" class="form-control" placeholder="Ex: Jiboia, Monstera..." required />
-          <button type="button" class="btn-ai-autofill" onclick="autoFillWithAI()">
-            ✨ Preencher Todos os Campos com IA
+          <input type="text" id="specieName" class="form-control" placeholder="Ex: Jiboia, Samambaia, Monstera" required />
+          <button type="button" class="btn-secondary" style="margin-top:0.4rem;" onclick="autoFillWithAI()">
+            ✨ Preencher Ficha com IA
           </button>
         </div>
 
@@ -692,7 +252,7 @@
           <input type="text" id="specieScientific" class="form-control" placeholder="Epipremnum aureum" />
         </div>
 
-        <div class="form-section-title">📋 CUIDADOS E FICHA TÉCNICA (CAMPOS SEPARADOS)</div>
+        <div class="form-section-title">📋 FICHA TÉCNICA DE CUIDADOS (CAMPOS INDIVIDUAIS)</div>
 
         <div class="form-group">
           <label>Categoria</label>
@@ -741,6 +301,7 @@
 
         <div class="form-group">
           <label>Dica Extra</label>
+
           <textarea id="fieldExtraTips" class="form-control" rows="2" placeholder="Ex: Limpar folhas com pano úmido"></textarea>
         </div>
 
@@ -749,54 +310,45 @@
           <textarea id="fieldObservations" class="form-control" rows="2" placeholder="Ex: Evitar solo encharcado"></textarea>
         </div>
 
-        <div class="form-group">
-          <label>Segurança para Pets</label>
-          <select id="speciePetSafety" class="form-control">
-            <option value="unknown">Não informado</option>
-            <option value="safe">✅ Segura para Pets</option>
-            <option value="toxic">⚠️ Tóxica para Pets</option>
-          </select>
-        </div>
-
-        <button type="submit" id="btnSaveSpecies" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 1rem;">
+        <button type="submit" id="btnSaveSpecies" class="btn-primary" style="width: 100%; justify-content: center; margin-top:1rem;">
           Salvar Espécie
         </button>
       </form>
     </div>
   </div>
 
-  <div class="modal-overlay" id="drawerAddPot">
+  <div class="modal-overlay" id="drawerAddVase">
     <div class="drawer">
       <div class="drawer-header">
-        <h3 style="font-family: 'Playfair Display', serif; color: var(--moss);">Cadastrar Novo Vaso</h3>
+        <h3 id="vaseModalTitle" style="font-family: 'Playfair Display', serif; color: var(--moss);">Cadastrar Novo Vaso</h3>
         <button class="btn-close" onclick="closeActiveDrawer()">&times;</button>
       </div>
 
-      <form id="formPot" onsubmit="savePot(event)">
+      <form id="formVase" onsubmit="saveVase(event)">
+        <input type="hidden" id="vaseEditId" />
+
         <div class="form-group">
-          <label>Apelido/Identificação do Vaso</label>
-          <input type="text" id="potName" class="form-control" placeholder="Ex: Jiboia da Sala, Monstera da Varanda" required />
+          <label>Nome do Vaso / Identificação</label>
+          <input type="text" id="vaseName" class="form-control" placeholder="Ex: Vaso 1 da Sala, Vaso Pendente Varanda" required />
         </div>
 
         <div class="form-group">
-          <label>Espécie Correspondente</label>
-          <select id="potSpeciesId" class="form-control" required>
-            <option value="">Selecione uma espécie...</option>
-          </select>
+          <label>Foto do Vaso</label>
+          <input type="file" id="vasePhotoInput" accept="image/*" class="form-control" />
         </div>
 
         <div class="form-group">
-          <label>Ambiente / Localização</label>
-          <input type="text" id="potLocation" class="form-control" placeholder="Ex: Sala de estar, Varanda norte" />
+          <label>Data do Último Transbordo / Transplante</label>
+          <input type="date" id="vaseRepotDate" class="form-control" />
         </div>
 
         <div class="form-group">
-          <label>Data de Início do Cultivo</label>
-          <input type="date" id="potStartDate" class="form-control" />
+          <label>Tamanho / Material do Vaso</label>
+          <input type="text" id="vaseSize" class="form-control" placeholder="Ex: Auto-irrigável 25cm / Barro 5L" />
         </div>
 
-        <button type="submit" id="btnSavePot" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 1rem;">
-          Cadastrar Vaso
+        <button type="submit" id="btnSaveVase" class="btn-primary" style="width: 100%; justify-content: center;">
+          Salvar Vaso
         </button>
       </form>
     </div>
@@ -810,28 +362,28 @@
       </div>
 
       <form id="formCareLog" onsubmit="saveCareLog(event)">
-        <input type="hidden" id="logPotId" />
+        <input type="hidden" id="logVaseId" />
 
         <div class="form-group">
           <label>Tipo de Ação</label>
           <select id="logActionType" class="form-control" required>
-            <option value="rega">💧 Rega</option>
-            <option value="adubacao">🧪 Adubação</option>
-            <option value="poda">✂️ Poda</option>
-            <option value="troca_vaso">🪴 Troca de Vaso / Substrato</option>
+            <option value="lastWater">💧 Rega</option>
+            <option value="lastFertilizer">🧪 Adubação</option>
+            <option value="lastPruning">✂️ Poda</option>
+            <option value="lastRepot">🪴 Transbordo / Transplante</option>
             <option value="lembrete">⏰ Agendar Lembrete Futuro</option>
             <option value="nota">📝 Nota / Observação</option>
           </select>
         </div>
 
         <div class="form-group">
-          <label>Data do Registro (Suporta Data Retroativa ou Futura)</label>
+          <label>Data e Hora do Registro (Permite Data Retroativa/Futura)</label>
           <input type="datetime-local" id="logDate" class="form-control" required />
         </div>
 
         <div class="form-group">
           <label>Observação / Detalhes</label>
-          <textarea id="logNotes" class="form-control" rows="3" placeholder="Ex: Usei NPK 10-10-10, podado 3 folhas amarelas..."></textarea>
+          <textarea id="logNotes" class="form-control" rows="3" placeholder="Ex: Regado com água de chuva, usado NPK 10-10-10..."></textarea>
         </div>
 
         <button type="submit" id="btnSaveLog" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 1rem;">
@@ -841,210 +393,308 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="drawerVaseDetail">
+    <div class="drawer">
+      <div class="drawer-header">
+        <h3 id="vaseDetailName" style="font-family: 'Playfair Display', serif; color: var(--moss);">Detalhes do Vaso</h3>
+        <button class="btn-close" onclick="closeActiveDrawer()">&times;</button>
+      </div>
+
+      <img id="vaseDetailPhoto" class="vase-img" style="height:220px;" />
+      <div id="vaseDetailPhotoPlaceholder" class="vase-img" style="height:220px; display:none; align-items:center; justify-content:center; color:#aaa;">🌱 Sem foto principal</div>
+
+      <div>
+        <h4 style="color: var(--moss); margin-bottom: 0.6rem; font-family: 'Playfair Display', serif;">📊 Frequência de Cuidados</h4>
+        <div id="vaseDetailStats" style="background: var(--cream); padding: 1rem; border-radius: 10px; font-size: 0.85rem;"></div>
+      </div>
+
+      <div>
+        <h4 style="color: var(--moss); margin-bottom: 0.6rem; font-family: 'Playfair Display', serif;">📜 Histórico Cronológico de Cuidados</h4>
+        <div id="vaseDetailHistory" class="timeline"></div>
+      </div>
+
+      <div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+          <h4 style="color: var(--moss); font-family: 'Playfair Display', serif;">📸 Galeria de Evolução</h4>
+          <label class="btn-secondary" style="cursor:pointer; font-size:0.78rem;">
+            + Adicionar Foto
+            <input type="file" accept="image/*" style="display:none;" onchange="addGalleryPhoto(event)" />
+          </label>
+        </div>
+        <div id="vaseDetailGallery" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:0.6rem;"></div>
+      </div>
+    </div>
+  </div>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-    // INSIRA AS SUAS CONFIGURAÇÕES DO FIREBASE AQUI
+    // CONFIGURAÇÃO DO SEU FIREBASE
     const firebaseConfig = {
-  apiKey: "AIzaSyBO2dpMGZG5N7-5wLTexU2puDsGjxzSDaI",
-  authDomain: "minhasplantas-9b229.firebaseapp.com",
-  projectId: "minhasplantas-9b229",
-  storageBucket: "minhasplantas-9b229.firebasestorage.app",
-  messagingSenderId: "568939226178",
-  appId: "1:568939226178:web:dcc77000360c7fdadcb9db"
+      apiKey: "AIzaSyBO2dpMGZG5N7-5wLTexU2puDsGjxzSDaI",
+      authDomain: "minhasplantas-9b229.firebaseapp.com",
+      projectId: "minhasplantas-9b229",
+      storageBucket: "minhasplantas-9b229.firebasestorage.app",
+      messagingSenderId: "568939226178",
+      appId: "1:568939226178:web:dcc77000360c7fdadcb9db"
     };
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-
+    
     const speciesCol = collection(db, "species");
-    const potsCol = collection(db, "pots");
-    const logsCol = collection(db, "care_logs");
+    const vasesCol = collection(db, "vases");
 
     const WORKER_URL = "https://shiny-sky-21dd.genesisgns.workers.dev/";
 
-    let speciesList = [];
-    let potsList = [];
-    let logsList = [];
+    let allSpecies = [];
+    let allVases = [];
+    let currentSelectedSpecies = null;
+    let currentDetailVaseId = null;
+    let activeDrawerId = null;
 
-    // OUVIR ESPÉCIES
+    // ESCUTAR FIREBASE EM TEMPO REAL
     onSnapshot(speciesCol, (snapshot) => {
-      speciesList = snapshot.docs.map(docSnap => ({ firestoreId: docSnap.id, ...docSnap.data() }));
-      renderSpecies();
-      updatePotSpeciesSelect();
+      allSpecies = snapshot.docs.map(d => ({ firestoreId: d.id, ...d.data() }));
+      renderSpeciesGrid();
       updateDashboard();
+      if (currentSelectedSpecies) {
+        const updated = allSpecies.find(s => s.firestoreId === currentSelectedSpecies.firestoreId);
+        if (updated) openSpeciesDetail(updated);
+      }
     });
 
-    // OUVIR VASOS
-    onSnapshot(potsCol, (snapshot) => {
-      potsList = snapshot.docs.map(docSnap => ({ firestoreId: docSnap.id, ...docSnap.data() }));
-      renderPots();
+    onSnapshot(vasesCol, (snapshot) => {
+      allVases = snapshot.docs.map(d => ({ firestoreId: d.id, ...d.data() }));
+      renderSpeciesGrid();
       updateDashboard();
+      if (currentSelectedSpecies) {
+        renderVasesForSpecies(currentSelectedSpecies.firestoreId);
+      }
+      if (currentDetailVaseId) {
+        renderVaseDetail(currentDetailVaseId);
+      }
     });
 
-    // OUVIR REGISTROS DE CUIDADOS
-    onSnapshot(logsCol, (snapshot) => {
-      logsList = snapshot.docs.map(docSnap => ({ firestoreId: docSnap.id, ...docSnap.data() }));
-      renderPots();
-      updateDashboard();
-    });
+    // ATUALIZAR DASHBOARD (CONTADORES & LEMBRETES)
+    function updateDashboard() {
+      document.getElementById('statSpeciesCount').innerText = allSpecies.length;
+      document.getElementById('statPotsCount').innerText = allVases.length;
 
-    // RENDERIZAR ESPÉCIES (CARDS MINIMALISTAS PARA CADA CUIDADO)
-    function renderSpecies() {
-      const container = document.getElementById('speciesList');
+      const todayStr = new Date().toISOString().split('T')[0];
+      const wateredTodayPots = new Set();
+
+      const allReminders = [];
+
+      allVases.forEach(vase => {
+        const history = vase.history || [];
+        history.forEach(h => {
+          if (h.type === 'lastWater' && h.date && h.date.startsWith(todayStr)) {
+            wateredTodayPots.add(vase.firestoreId);
+          }
+          if (h.type === 'lembrete' || new Date(h.date) >= new Date()) {
+            allReminders.push({ vaseName: vase.name, ...h });
+          }
+        });
+      });
+
+      document.getElementById('statWateredToday').innerText = wateredTodayPots.size;
+
+      const remindersList = document.getElementById('remindersList');
+      if (allReminders.length === 0) {
+        remindersList.innerHTML = '<p style="color:#888; font-size:0.85rem;">Nenhum lembrete próximo no momento.</p>';
+      } else {
+        remindersList.innerHTML = '';
+        allReminders
+          .sort((a,b) => new Date(a.date) - new Date(b.date))
+          .slice(0, 5)
+          .forEach(rem => {
+            const dateFormatted = new Date(rem.date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+            const item = document.createElement('div');
+            item.className = 'reminder-item';
+            item.innerHTML = `
+              <div><b>${rem.vaseName}:</b> ${rem.notes || 'Lembrete agendado'}</div>
+              <span style="font-weight:700; color:var(--terra);">${dateFormatted}</span>
+            `;
+            remindersList.appendChild(item);
+          });
+      }
+    }
+
+    // RENDERIZAR CARDS DAS ESPÉCIES NA HOME
+    function renderSpeciesGrid() {
+      const container = document.getElementById('speciesGrid');
       container.innerHTML = '';
 
-      if (speciesList.length === 0) {
-        container.innerHTML = '<p style="color:#666;">Nenhuma espécie cadastrada.</p>';
+      if (allSpecies.length === 0) {
+        container.innerHTML = '<p style="color:#666;">Nenhuma espécie cadastrada ainda.</p>';
         return;
       }
 
-      speciesList.forEach(item => {
-        const petTag = item.petSafety === 'toxic' 
-          ? `<span class="pet-badge toxic">⚠️ Tóxica para Pets</span>`
-          : item.petSafety === 'safe'
-          ? `<span class="pet-badge safe">✅ Segura para Pets</span>`
-          : '';
-
-        // Criação da grid de mini badges para cada cuidado individual
-        const fields = [
-          { label: "Categoria", val: item.category },
-          { label: "Luz / Sol", val: item.light },
-          { label: "Rega", val: item.water },
-          { label: "Poda", val: item.pruning },
-          { label: "Umidade", val: item.humidity },
-          { label: "Solo", val: item.soil },
-          { label: "Adubação Comercial", val: item.fertilizer },
-          { label: "Adubação Natural", val: item.naturalFertilizer },
-          { label: "Dica Extra", val: item.extraTips },
-          { label: "Observações", val: item.observations }
-        ];
-
-        let badgesHTML = '';
-        fields.forEach(f => {
-          if (f.val) {
-            badgesHTML += `
-              <div class="care-badge-item">
-                <span class="care-badge-label">${f.label}</span>
-                <span class="care-badge-val">${f.val}</span>
-              </div>
-            `;
-          }
-        });
-
-        // Caso tenha registro legado 'care'
-        if (!badgesHTML && item.care) {
-          badgesHTML = `<div class="care-badge-item" style="grid-column: 1/-1;"><span class="care-badge-val">${item.care}</span></div>`;
-        }
+      allSpecies.forEach(sp => {
+        const countVases = allVases.filter(v => v.speciesId === sp.firestoreId).length;
 
         const card = document.createElement('div');
-        card.className = 'card';
+        card.className = 'species-card';
+        card.onclick = () => openSpeciesDetail(sp);
+
         card.innerHTML = `
-          <button class="btn-delete-card" onclick="deleteSpecies('${item.firestoreId}')" title="Excluir">&times;</button>
-          <div class="card-header">
-            <div class="card-info">
-              <span class="card-emoji">${item.emoji || '🌿'}</span>
-              <div>
-                <div class="card-title">${item.name}</div>
-                <div class="card-subtitle">${item.scientific || item.scientific_name || ''}</div>
-                ${petTag}
-              </div>
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div style="font-size:2rem; background:var(--cream); padding:0.4rem; border-radius:10px;">🪴</div>
+            <div style="display:flex; gap:0.2rem;">
+              <button class="btn-icon" onclick="event.stopPropagation(); editSpecies('${sp.firestoreId}')" title="Editar">✏️</button>
+              <button class="btn-icon" onclick="event.stopPropagation(); deleteSpecies('${sp.firestoreId}')" title="Excluir">&times;</button>
             </div>
           </div>
-          <div class="care-badges-grid">
-            ${badgesHTML || '<p style="font-size:0.8rem; color:#888;">Sem detalhes cadastrados.</p>'}
+          <h3 style="font-family:'Playfair Display', serif; margin-top:0.6rem; color:var(--ink);">${sp.name}</h3>
+          <p style="font-size:0.8rem; font-style:italic; color:var(--sage);">${sp.scientific || ''}</p>
+          <div style="margin-top:1rem; font-size:0.85rem; font-weight:700; color:var(--terra);">
+            🪴 ${countVases} ${countVases === 1 ? 'Vaso cadastrado' : 'Vasos cadastrados'}
           </div>
         `;
         container.appendChild(card);
       });
     }
 
-    // RENDERIZAR VASOS (COM CRONOLOGIA RETROATIVA E MINI GRÁFICO)
-    function renderPots() {
-      const container = document.getElementById('potsList');
+    // ABRIR DETALHES DE UMA ESPÉCIE & SEUS VASOS
+    window.openSpeciesDetail = function(species) {
+      currentSelectedSpecies = species;
+      document.getElementById('sec-species').style.display = 'none';
+      document.getElementById('sec-species-detail').style.display = 'block';
+
+      document.getElementById('detailSpeciesName').innerText = species.name;
+      document.getElementById('detailSpeciesNameVases').innerText = species.name;
+      document.getElementById('detailSpeciesScientific').innerText = species.scientific || '';
+
+      // RENDERIZAR MINI CARDS DE CUIDADOS DA ESPÉCIE
+      const careGrid = document.getElementById('detailSpeciesCareGrid');
+      careGrid.innerHTML = '';
+
+      const careFields = [
+        { label: "Categoria", val: species.category },
+        { label: "Luz / Sol", val: species.light },
+        { label: "Rega", val: species.water },
+        { label: "Poda", val: species.pruning },
+        { label: "Umidade", val: species.humidity },
+        { label: "Solo", val: species.soil },
+        { label: "Adubação Comercial", val: species.fertilizer },
+        { label: "Adubação Natural", val: species.naturalFertilizer },
+        { label: "Dica Extra", val: species.extraTips },
+        { label: "Observações", val: species.observations }
+      ];
+
+      let countBadges = 0;
+      careFields.forEach(f => {
+        if (f.val) {
+          countBadges++;
+          careGrid.innerHTML += `
+            <div class="care-badge-item">
+              <span class="care-badge-label">${f.label}</span>
+              <span class="care-badge-val">${f.val}</span>
+            </div>`;
+        }
+      });
+
+      // Suporte a cadastro em formato legados de versão anterior
+      if (countBadges === 0 && species.care) {
+        careGrid.innerHTML = `<div class="care-badge-item" style="grid-column: 1/-1;"><span class="care-badge-val">${species.care}</span></div>`;
+      } else if (countBadges === 0) {
+        careGrid.innerHTML = `<p style="font-size:0.8rem; color:#888;">Nenhuma instrução específica cadastrada.</p>`;
+      }
+
+      renderVasesForSpecies(species.firestoreId);
+    };
+
+    window.backToSpecies = function() {
+      currentSelectedSpecies = null;
+      document.getElementById('sec-species-detail').style.display = 'none';
+      document.getElementById('sec-species').style.display = 'block';
+    };
+
+    // RENDERIZAR VASOS DA ESPÉCIE SELECIONADA
+    function renderVasesForSpecies(speciesId) {
+      const container = document.getElementById('vasesGrid');
       container.innerHTML = '';
 
-      if (potsList.length === 0) {
-        container.innerHTML = '<p style="color:#666;">Nenhum vaso cadastrado.</p>';
+      const myVases = allVases.filter(v => v.speciesId === speciesId);
+
+      if (myVases.length === 0) {
+        container.innerHTML = '<p style="color:#666; grid-column: 1/-1;">Você ainda não cadastrou nenhum vaso para esta espécie.</p>';
         return;
       }
 
-      potsList.forEach(pot => {
-        const spec = speciesList.find(s => s.firestoreId === pot.speciesId) || {};
-        
-        // Filtrar e ORDENAR cronologicamente os logs deste vaso (Mais recente primeiro)
-        const potLogs = logsList
-          .filter(l => l.potId === pot.firestoreId)
-          .sort((a, b) => new Date(b.date) - new Date(a.date));
+      myVases.forEach(vase => {
+        const lastWater = vase.lastWater ? new Date(vase.lastWater).toLocaleDateString('pt-BR') : 'Nunca registrado';
+        const lastFertilizer = vase.lastFertilizer ? new Date(vase.lastFertilizer).toLocaleDateString('pt-BR') : 'Nunca registrado';
+        const lastPruning = vase.lastPruning ? new Date(vase.lastPruning).toLocaleDateString('pt-BR') : 'Nunca registrado';
+        const lastRepot = vase.lastRepot ? new Date(vase.lastRepot).toLocaleDateString('pt-BR') : 'Não informado';
 
-        let timelineHTML = '';
-        potLogs.slice(0, 5).forEach(log => {
-          const formattedDate = new Date(log.date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
-          const icons = { rega: '💧', adubacao: '🧪', poda: '✂️', troca_vaso: '🪴', lembrete: '⏰', nota: '📝' };
-          
-          timelineHTML += `
-            <div class="timeline-item">
-              <span class="timeline-icon">${icons[log.actionType] || '📌'}</span>
-              <div style="flex:1;">
-                <div class="timeline-date">${formattedDate}</div>
-                <div><b>${log.actionType.toUpperCase()}</b>: ${log.notes || 'Sem observação'}</div>
-              </div>
-            </div>
-          `;
-        });
+        const history = (vase.history || []).sort((a,b) => new Date(b.date) - new Date(a.date));
 
         const card = document.createElement('div');
-        card.className = 'card';
+        card.className = 'vase-card';
         card.innerHTML = `
-          <button class="btn-delete-card" onclick="deletePot('${pot.firestoreId}')" title="Excluir Vaso">&times;</button>
-          <div class="card-header">
-            <div class="card-info">
-              <span class="card-emoji">🪴</span>
-              <div>
-                <div class="card-title">${pot.name}</div>
-                <div class="card-subtitle">${spec.name || 'Espécie não vinculada'} - ${pot.location || 'Local não definido'}</div>
-              </div>
+          ${vase.photo
+            ? `<img src="${vase.photo}" class="vase-img" style="cursor:pointer;" onclick="openVaseDetail('${vase.firestoreId}')" />`
+            : `<div class="vase-img" style="display:flex; align-items:center; justify-content:center; color:#aaa; cursor:pointer;" onclick="openVaseDetail('${vase.firestoreId}')">🌱 Sem foto do vaso</div>`}
+
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h4 style="font-size:1.1rem; color:var(--moss); cursor:pointer;" onclick="openVaseDetail('${vase.firestoreId}')">${vase.name}</h4>
+            <div style="display:flex; gap:0.2rem;">
+              <button class="btn-icon" onclick="editVase('${vase.firestoreId}')" title="Editar Vaso">✏️</button>
+              <button class="btn-icon" onclick="deleteVase('${vase.firestoreId}')" title="Excluir Vaso">&times;</button>
             </div>
+          </div>
+
+          <p style="font-size:0.75rem; color:#666;"><b>Tamanho/Material:</b> ${vase.size || 'Padrão'}</p>
+
+          <div style="background:var(--cream); padding:0.6rem; border-radius:8px; font-size:0.78rem;">
+            <div>💧 <b>Última Rega:</b> ${lastWater}</div>
+            <div>🧪 <b>Última Adubação:</b> ${lastFertilizer}</div>
+            <div>✂️ <b>Última Poda:</b> ${lastPruning}</div>
+            <div>🪴 <b>Último Transbordo:</b> ${lastRepot}</div>
           </div>
 
           <div class="mini-chart-container">
             <div class="mini-chart-title">📊 Frequência de Regas (Dias)</div>
-            <canvas id="chart-${pot.firestoreId}" width="280" height="40"></canvas>
+            <canvas id="chart-${vase.firestoreId}" width="250" height="40"></canvas>
           </div>
 
-          <button class="btn-primary" style="font-size:0.8rem; padding:0.5rem 1rem;" onclick="openCareLogDrawer('${pot.firestoreId}')">
-            + Registrar Cuidado / Retroativo / Lembrete
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.4rem;">
+            <button class="btn-secondary" style="font-size:0.75rem;" onclick="recordCareQuick('${vase.firestoreId}', 'lastWater')">💧 Regar Hoje</button>
+            <button class="btn-secondary" style="font-size:0.75rem;" onclick="recordCareQuick('${vase.firestoreId}', 'lastFertilizer')">🧪 Adubar Hoje</button>
+          </div>
+
+          <button class="btn-primary" style="font-size:0.78rem; padding:0.5rem;" onclick="openCareLogDrawer('${vase.firestoreId}')">
+            + Registro Retroativo / Lembrete
           </button>
 
-          <div class="timeline">
-            <div style="font-size:0.75rem; font-weight:700; color:var(--moss);">HISTÓRICO CRONOLÓGICO:</div>
-            ${timelineHTML || '<p style="font-size:0.8rem; color:#888;">Nenhum cuidado registrado ainda.</p>'}
-          </div>
+          <button class="btn-secondary" style="font-size:0.75rem; background:var(--gold);" onclick="openVaseDetail('${vase.firestoreId}')">
+            🔍 Ver Detalhes & Galeria
+          </button>
         `;
         container.appendChild(card);
 
-        // Renderizar mini gráfico no canvas
-        setTimeout(() => drawMiniChart(pot.firestoreId, potLogs), 50);
+        setTimeout(() => drawMiniChart(vase.firestoreId, history), 50);
       });
     }
 
-    // DESENHAR MINI GRÁFICO CANVAS DE FREQUÊNCIA
-    function drawMiniChart(potId, logs) {
-      const canvas = document.getElementById(`chart-${potId}`);
+    // DESENHAR MINI GRÁFICO DE FREQUÊNCIA
+    function drawMiniChart(vaseId, history) {
+      const canvas = document.getElementById(`chart-${vaseId}`);
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      const regas = logs.filter(l => l.actionType === 'rega').reverse();
+      const regas = history.filter(h => h.type === 'lastWater').reverse();
       if (regas.length < 2) {
         ctx.fillStyle = '#aaa';
         ctx.font = '10px sans-serif';
-        ctx.fillText('Histórico insuficiente para gráfico', 10, 24);
+        ctx.fillText('Histórico suficiente necessário', 10, 24);
         return;
       }
 
-      // Calcular intervalos em dias
       const intervals = [];
       for (let i = 1; i < regas.length; i++) {
         const diff = (new Date(regas[i].date) - new Date(regas[i-1].date)) / (1000 * 60 * 60 * 24);
@@ -1068,86 +718,192 @@
       });
     }
 
-    // ATUALIZAR CONTADORES E LEMBRETES NO DASHBOARD
-    function updateDashboard() {
-      document.getElementById('statSpeciesCount').innerText = speciesList.length;
-      document.getElementById('statPotsCount').innerText = potsList.length;
+    // REGISTRO RÁPIDO DO DIA DE HOJE
+    window.recordCareQuick = async function(vaseId, careType) {
+      const now = new Date().toISOString();
+      const vaseDoc = doc(db, "vases", vaseId);
 
-      // Calcular regados hoje
-      const todayStr = new Date().toISOString().split('T')[0];
-      const wateredTodayPots = new Set(
-        logsList
-          .filter(l => l.actionType === 'rega' && l.date.startsWith(todayStr))
-          .map(l => l.potId)
-      );
-      document.getElementById('statWateredToday').innerText = wateredTodayPots.size;
-
-      // Renderizar Lembretes
-      const remindersContainer = document.getElementById('remindersList');
-      const futureLogs = logsList
-        .filter(l => l.actionType === 'lembrete' || new Date(l.date) >= new Date())
-        .sort((a, b) => new Date(a.date) - new Date(b.date));
-
-      if (futureLogs.length === 0) {
-        remindersContainer.innerHTML = '<p style="color:#888; font-size:0.85rem;">Nenhum lembrete próximo no momento.</p>';
-        return;
+      try {
+        await updateDoc(vaseDoc, {
+          [careType]: now,
+          history: arrayUnion({ type: careType, date: now, notes: "Registro rápido" })
+        });
+      } catch (err) {
+        alert("Erro ao registrar ação: " + err.message);
       }
+    };
 
-      remindersContainer.innerHTML = '';
-      futureLogs.slice(0, 5).forEach(rem => {
-        const pot = potsList.find(p => p.firestoreId === rem.potId) || {};
-        const dateFormatted = new Date(rem.date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
-        
-        const div = document.createElement('div');
-        div.className = 'reminder-item';
-        div.innerHTML = `
-          <div>
-            <b>${pot.name || 'Vaso'}:</b> ${rem.notes || rem.actionType}
-          </div>
-          <span style="font-weight:700; color:var(--terra);">${dateFormatted}</span>
-        `;
-        remindersContainer.appendChild(div);
-      });
-    }
+    // ABRIR DRAWER REGISTRO RETROATIVO
+    window.openCareLogDrawer = function(vaseId) {
+      document.getElementById('logVaseId').value = vaseId;
+      const now = new Date();
+      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+      document.getElementById('logDate').value = now.toISOString().slice(0, 16);
+      openDrawer('drawerCareLog');
+    };
 
-    // ATUALIZAR SELECT DE ESPÉCIES NO FORM DE VASO
-    function updatePotSpeciesSelect() {
-      const select = document.getElementById('potSpeciesId');
-      select.innerHTML = '<option value="">Selecione uma espécie...</option>';
-      speciesList.forEach(s => {
-        select.innerHTML += `<option value="${s.firestoreId}">${s.name} (${s.scientific || 'S/N'})</option>`;
-      });
-    }
+    window.saveCareLog = async function(e) {
+      e.preventDefault();
+      const vaseId = document.getElementById('logVaseId').value;
+      const actionType = document.getElementById('logActionType').value;
+      const dateVal = document.getElementById('logDate').value;
+      const notes = document.getElementById('logNotes').value;
 
-    // PREENCHIMENTO DE ESPÉCIE COM IA (EM CAMPOS SEPARADOS)
-    window.autoFillWithAI = async function() {
-      const name = document.getElementById('specieName').value;
-      if (!name) return alert('Digite o nome da planta primeiro!');
+      if (!vaseId || !dateVal) return;
 
-      const btn = document.querySelector('.btn-ai-autofill');
-      btn.innerText = "⏳ Preenchendo os Campos...";
+      const isoDate = new Date(dateVal).toISOString();
+      const vaseDoc = doc(db, "vases", vaseId);
+
+      try {
+        const updatePayload = {
+          history: arrayUnion({ type: actionType, date: isoDate, notes: notes })
+        };
+        if (actionType !== 'lembrete' && actionType !== 'nota') {
+          updatePayload[actionType] = isoDate;
+        }
+
+        await updateDoc(vaseDoc, updatePayload);
+        closeActiveDrawer();
+        document.getElementById('formCareLog').reset();
+      } catch (err) {
+        alert("Erro ao salvar log: " + err.message);
+      }
+    };
+
+    // ==================== NAVEGAÇÃO ====================
+    window.switchTab = function(tab) {
+      document.getElementById('sec-species').style.display = tab === 'species' ? 'block' : 'none';
+      document.getElementById('sec-species-detail').style.display = 'none';
+      document.getElementById('sec-ai').style.display = tab === 'ai' ? 'block' : 'none';
+
+      document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll(`.nav-btn[onclick="switchTab('${tab}')"]`).forEach(btn => btn.classList.add('active'));
+    };
+
+    window.openDrawer = function(id) {
+      activeDrawerId = id;
+      document.getElementById(id).classList.add('active');
+    };
+
+    window.closeActiveDrawer = function() {
+      if (activeDrawerId) {
+        document.getElementById(activeDrawerId).classList.remove('active');
+        activeDrawerId = null;
+      }
+    };
+
+    // ==================== ESPÉCIES: SALVAR / EDITAR / EXCLUIR ====================
+    window.openAddSpeciesModal = function() {
+      document.getElementById('formSpecies').reset();
+      document.getElementById('speciesEditId').value = '';
+      document.getElementById('speciesModalTitle').innerText = 'Cadastrar Nova Espécie';
+      openDrawer('drawerAddSpecies');
+    };
+
+    window.editSpecies = function(firestoreId) {
+      const sp = allSpecies.find(s => s.firestoreId === firestoreId);
+      if (!sp) return;
+
+      document.getElementById('speciesEditId').value = sp.firestoreId;
+      document.getElementById('speciesModalTitle').innerText = 'Editar Espécie';
+
+      document.getElementById('specieName').value = sp.name || '';
+      document.getElementById('specieScientific').value = sp.scientific || '';
+      document.getElementById('fieldCategory').value = sp.category || '';
+      document.getElementById('fieldLight').value = sp.light || '';
+      document.getElementById('fieldWater').value = sp.water || '';
+      document.getElementById('specieWaterDays').value = sp.waterDays || '';
+      document.getElementById('fieldPruning').value = sp.pruning || '';
+      document.getElementById('fieldHumidity').value = sp.humidity || '';
+      document.getElementById('fieldSoil').value = sp.soil || '';
+      document.getElementById('fieldFertilizer').value = sp.fertilizer || '';
+      document.getElementById('fieldNaturalFertilizer').value = sp.naturalFertilizer || '';
+      document.getElementById('fieldExtraTips').value = sp.extraTips || '';
+      document.getElementById('fieldObservations').value = sp.observations || '';
+
+      openDrawer('drawerAddSpecies');
+    };
+
+    window.editCurrentSpecies = function() {
+      if (currentSelectedSpecies) editSpecies(currentSelectedSpecies.firestoreId);
+    };
+
+    window.saveSpecies = async function(event) {
+      event.preventDefault();
+      const btn = document.getElementById('btnSaveSpecies');
+      const editId = document.getElementById('speciesEditId').value;
+
+      const speciesData = {
+        name: document.getElementById('specieName').value.trim(),
+        scientific: document.getElementById('specieScientific').value.trim(),
+        category: document.getElementById('fieldCategory').value.trim(),
+        light: document.getElementById('fieldLight').value.trim(),
+        water: document.getElementById('fieldWater').value.trim(),
+        waterDays: Number(document.getElementById('specieWaterDays').value) || 5,
+        pruning: document.getElementById('fieldPruning').value.trim(),
+        humidity: document.getElementById('fieldHumidity').value.trim(),
+        soil: document.getElementById('fieldSoil').value.trim(),
+        fertilizer: document.getElementById('fieldFertilizer').value.trim(),
+        naturalFertilizer: document.getElementById('fieldNaturalFertilizer').value.trim(),
+        extraTips: document.getElementById('fieldExtraTips').value.trim(),
+        observations: document.getElementById('fieldObservations').value.trim(),
+      };
+
       btn.disabled = true;
 
-      const prompt = `
-      Você é um botânico especialista. Forneça dados de cultivo sobre a planta '${name}'.
-      Responda EXCLUSIVAMENTE em formato JSON VÁLIDO sem marcações de código markdown (sem \`\`\`json):
-
-      {
-        "scientific_name": "Nome científico exato",
-        "category": "Ex: Trepadeira / Folhosa",
-        "light": "Ex: Sol Pleno / Meia Sombra",
-        "water": "Ex: Moderada (Regar ao secar o solo)",
-        "water_days": 5,
-        "pruning": "Ex: Regular / Baixa",
-        "humidity": "Ex: Alta umidade (>60%)",
-        "soil": "Ex: Substrato leve e drenável",
-        "fertilizer": "Ex: NPK 10-10-10 mensal",
-        "natural_fertilizer": "Ex: Chá de casca de banana",
-        "extra_tips": "Dica prática de ouro",
-        "observations": "O que NUNCA fazer",
-        "pet_toxic": true
+      try {
+        if (editId) {
+          await updateDoc(doc(db, "species", editId), speciesData);
+        } else {
+          speciesData.createdAt = new Date().toISOString();
+          await addDoc(speciesCol, speciesData);
+        }
+        document.getElementById('formSpecies').reset();
+        closeActiveDrawer();
+      } catch (err) {
+        alert('Erro ao salvar espécie: ' + err.message);
+      } finally {
+        btn.disabled = false;
       }
-      `;
+    };
+
+    window.deleteSpecies = async function(firestoreId) {
+      if (!confirm('Tem certeza que deseja excluir esta espécie?')) return;
+      try {
+        await deleteDoc(doc(db, "species", firestoreId));
+        if (currentSelectedSpecies && currentSelectedSpecies.firestoreId === firestoreId) {
+          backToSpecies();
+        }
+      } catch (err) {
+        alert('Erro ao excluir espécie: ' + err.message);
+      }
+    };
+
+    // PREENCHIMENTO AUTOMÁTICO COM IA (CAMPOS SEPARADOS)
+    window.autoFillWithAI = async function() {
+      const name = document.getElementById('specieName').value.trim();
+      if (!name) return alert('Digite o nome da planta primeiro.');
+
+      const btn = event.target;
+      btn.disabled = true;
+      btn.innerText = '✨ Consultando IA...';
+
+      const prompt = `
+      Forneça dados de cultivo sobre '${name}' em JSON VÁLIDO (sem markdown):
+      {
+        "scientific_name": "Nome científico",
+        "category": "Ex: Trepadeira / Folhosa",
+        "light": "Ex: Meia Sombra",
+        "water": "Ex: Moderada",
+        "water_days": 5,
+        "pruning": "Ex: Regular",
+        "humidity": "Ex: Alta",
+        "soil": "Ex: Substrato drenável",
+        "fertilizer": "Ex: NPK 10-10-10",
+        "natural_fertilizer": "Ex: Borra de café",
+        "extra_tips": "Dica de ouro",
+        "observations": "Evitar excesso de água"
+      }`;
 
       try {
         const response = await fetch(WORKER_URL, {
@@ -1157,7 +913,6 @@
         });
 
         const data = await response.json();
-
         if (response.ok && data.resposta) {
           const cleanedText = data.resposta.replace(/```json/g, '').replace(/```/g, '').trim();
           const parsed = JSON.parse(cleanedText);
@@ -1174,163 +929,247 @@
           document.getElementById('fieldNaturalFertilizer').value = parsed.natural_fertilizer || '';
           document.getElementById('fieldExtraTips').value = parsed.extra_tips || '';
           document.getElementById('fieldObservations').value = parsed.observations || '';
-          document.getElementById('speciePetSafety').value = parsed.pet_toxic ? 'toxic' : 'safe';
+        }
+      } catch (err) {
+        alert('Erro ao consultar IA.');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = '✨ Preencher Ficha com IA';
+      }
+    };
+
+    // ==================== VASOS: CADASTRAR / EDITAR / EXCLUIR ====================
+    window.openAddVaseModal = function() {
+      document.getElementById('formVase').reset();
+      document.getElementById('vaseEditId').value = '';
+      document.getElementById('vaseModalTitle').innerText = 'Cadastrar Novo Vaso';
+      openDrawer('drawerAddVase');
+    };
+
+    window.editVase = function(vaseId) {
+      const vase = allVases.find(v => v.firestoreId === vaseId);
+      if (!vase) return;
+
+      document.getElementById('vaseEditId').value = vase.firestoreId;
+      document.getElementById('vaseModalTitle').innerText = 'Editar Vaso';
+
+      document.getElementById('vaseName').value = vase.name || '';
+      document.getElementById('vaseSize').value = vase.size || '';
+      document.getElementById('vaseRepotDate').value = vase.lastRepot ? vase.lastRepot.slice(0, 10) : '';
+
+      openDrawer('drawerAddVase');
+    };
+
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    window.saveVase = async function(event) {
+      event.preventDefault();
+      if (!currentSelectedSpecies) return alert('Selecione uma espécie primeiro.');
+
+      const btn = document.getElementById('btnSaveVase');
+      const editId = document.getElementById('vaseEditId').value;
+      const name = document.getElementById('vaseName').value.trim();
+      const size = document.getElementById('vaseSize').value.trim();
+      const repotDate = document.getElementById('vaseRepotDate').value;
+      const photoFile = document.getElementById('vasePhotoInput').files[0];
+
+      btn.disabled = true;
+
+      try {
+        if (editId) {
+          const vaseDoc = doc(db, "vases", editId);
+          const updatePayload = { name, size };
+
+          if (photoFile) {
+            const photoBase64 = await fileToBase64(photoFile);
+            updatePayload.photo = photoBase64;
+            updatePayload.photoHistory = arrayUnion({ photo: photoBase64, date: new Date().toISOString() });
+          }
+
+          if (repotDate) {
+            updatePayload.lastRepot = new Date(repotDate).toISOString();
+          }
+
+          await updateDoc(vaseDoc, updatePayload);
         } else {
-          alert('Erro ao consultar IA: ' + (data.error || 'Falha na resposta'));
+          let photoBase64 = '';
+          let photoHistory = [];
+
+          if (photoFile) {
+            photoBase64 = await fileToBase64(photoFile);
+            photoHistory = [{ photo: photoBase64, date: new Date().toISOString() }];
+          }
+
+          const vaseData = {
+            speciesId: currentSelectedSpecies.firestoreId,
+            name,
+            size,
+            photo: photoBase64,
+            photoHistory,
+            history: [],
+            createdAt: new Date().toISOString()
+          };
+
+          if (repotDate) {
+            const repotIso = new Date(repotDate).toISOString();
+            vaseData.lastRepot = repotIso;
+            vaseData.history = [{ type: 'lastRepot', date: repotIso }];
+          }
+
+          await addDoc(vasesCol, vaseData);
         }
+
+        document.getElementById('formVase').reset();
+        closeActiveDrawer();
       } catch (err) {
-        alert("Erro ao processar dados com a IA.");
+        alert('Erro ao salvar vaso: ' + err.message);
       } finally {
-        btn.innerText = "✨ Preencher Todos os Campos com IA";
         btn.disabled = false;
       }
     };
 
-    // AÇÕES DE SALVAMENTO NO FIREBASE
-    window.saveSpecies = async function(e) {
-      e.preventDefault();
-      const btn = document.getElementById('btnSaveSpecies');
-      btn.disabled = true;
-
-      const newDocData = {
-        name: document.getElementById('specieName').value,
-        scientific: document.getElementById('specieScientific').value,
-        emoji: "🪴",
-        waterDays: Number(document.getElementById('specieWaterDays').value) || 5,
-        petSafety: document.getElementById('speciePetSafety').value,
-        category: document.getElementById('fieldCategory').value,
-        light: document.getElementById('fieldLight').value,
-        water: document.getElementById('fieldWater').value,
-        pruning: document.getElementById('fieldPruning').value,
-        humidity: document.getElementById('fieldHumidity').value,
-        soil: document.getElementById('fieldSoil').value,
-        fertilizer: document.getElementById('fieldFertilizer').value,
-        naturalFertilizer: document.getElementById('fieldNaturalFertilizer').value,
-        extraTips: document.getElementById('fieldExtraTips').value,
-        observations: document.getElementById('fieldObservations').value,
-        createdAt: new Date().toISOString()
-      };
-
+    window.deleteVase = async function(firestoreId) {
+      if (!confirm('Tem certeza que deseja excluir este vaso?')) return;
       try {
-        await addDoc(speciesCol, newDocData);
-        window.closeActiveDrawer();
-        document.getElementById('formSpecies').reset();
+        await deleteDoc(doc(db, "vases", firestoreId));
       } catch (err) {
-        alert("Erro ao salvar espécie: " + err.message);
-      } finally {
-        btn.disabled = false;
+        alert('Erro ao excluir vaso: ' + err.message);
       }
     };
 
-    window.savePot = async function(e) {
-      e.preventDefault();
-      const btn = document.getElementById('btnSavePot');
-      btn.disabled = true;
+    // ==================== DETALHES DO VASO: HISTÓRICO & GALERIA ====================
+    window.openVaseDetail = function(vaseId) {
+      currentDetailVaseId = vaseId;
+      renderVaseDetail(vaseId);
+      openDrawer('drawerVaseDetail');
+    };
 
-      const newPot = {
-        name: document.getElementById('potName').value,
-        speciesId: document.getElementById('potSpeciesId').value,
-        location: document.getElementById('potLocation').value,
-        startDate: document.getElementById('potStartDate').value,
-        createdAt: new Date().toISOString()
-      };
+    function renderVaseDetail(vaseId) {
+      const vase = allVases.find(v => v.firestoreId === vaseId);
+      if (!vase) return;
 
-      try {
-        await addDoc(potsCol, newPot);
-        window.closeActiveDrawer();
-        document.getElementById('formPot').reset();
-      } catch (err) {
-        alert("Erro ao salvar vaso: " + err.message);
-      } finally {
-        btn.disabled = false;
+      document.getElementById('vaseDetailName').innerText = vase.name;
+
+      const photoEl = document.getElementById('vaseDetailPhoto');
+      const photoPlaceholder = document.getElementById('vaseDetailPhotoPlaceholder');
+      if (vase.photo) {
+        photoEl.src = vase.photo;
+        photoEl.style.display = 'block';
+        photoPlaceholder.style.display = 'none';
+      } else {
+        photoEl.style.display = 'none';
+        photoPlaceholder.style.display = 'flex';
       }
-    };
 
-    window.saveCareLog = async function(e) {
-      e.preventDefault();
-      const btn = document.getElementById('btnSaveLog');
-      btn.disabled = true;
+      const history = vase.history || [];
 
-      const newLog = {
-        potId: document.getElementById('logPotId').value,
-        actionType: document.getElementById('logActionType').value,
-        date: document.getElementById('logDate').value,
-        notes: document.getElementById('logNotes').value,
-        createdAt: new Date().toISOString()
-      };
+      // STATS DE FREQUÊNCIA
+      const CARE_TYPES = [
+        { key: 'lastWater', label: '💧 Rega' },
+        { key: 'lastFertilizer', label: '🧪 Adubação' },
+        { key: 'lastPruning', label: '✂️ Poda' },
+        { key: 'lastRepot', label: '🪴 Transbordo' }
+      ];
 
-      try {
-        await addDoc(logsCol, newLog);
-        window.closeActiveDrawer();
-        document.getElementById('formCareLog').reset();
-      } catch (err) {
-        alert("Erro ao salvar log: " + err.message);
-      } finally {
-        btn.disabled = false;
-      }
-    };
+      let statsHtml = '';
+      CARE_TYPES.forEach(ct => {
+        const lastDate = vase[ct.key] ? new Date(vase[ct.key]).toLocaleDateString('pt-BR') : 'Nunca registrado';
+        const events = history.filter(h => h.type === ct.key).map(h => new Date(h.date)).sort((a, b) => a - b);
 
-    // EXCLUSÕES
-    window.deleteSpecies = async function(id) {
-      if (confirm("Deseja excluir esta espécie?")) {
-        await deleteDoc(doc(db, "species", id));
-      }
-    };
-
-    window.deletePot = async function(id) {
-      if (confirm("Deseja excluir este vaso e seus registros?")) {
-        await deleteDoc(doc(db, "pots", id));
-      }
-    };
-
-    // AUXILIARES DE INTERFACE
-    window.openCareLogDrawer = function(potId) {
-      document.getElementById('logPotId').value = potId;
-      // Preenche data e hora atual como padrão no campo datetime-local
-      const now = new Date();
-      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-      document.getElementById('logDate').value = now.toISOString().slice(0, 16);
-      openDrawer('drawerCareLog');
-    };
-
-    window.openDrawer = function(drawerId) {
-      const drawer = document.getElementById(drawerId);
-      if (drawer) {
-        drawer.classList.add('active');
-        history.pushState({ modalOpen: true }, '');
-      }
-    };
-
-    window.closeActiveDrawer = function() {
-      const activeOverlay = document.querySelector('.modal-overlay.active');
-      if (activeOverlay) {
-        activeOverlay.classList.remove('active');
-        if (history.state && history.state.modalOpen) {
-          history.back();
+        let freqText = 'Mínimo 2 registros necessários';
+        if (events.length >= 2) {
+          let totalDays = 0;
+          for (let i = 1; i < events.length; i++) {
+            totalDays += (events[i] - events[i - 1]) / (1000 * 60 * 60 * 24);
+          }
+          const avg = totalDays / (events.length - 1);
+          freqText = `Média: a cada ${avg.toFixed(1)} dias`;
         }
-      }
-    };
 
-    window.switchTab = function(tab) {
-      document.getElementById('sec-dashboard').style.display = tab === 'dashboard' ? 'block' : 'none';
-      document.getElementById('sec-plants').style.display = tab === 'plants' ? 'block' : 'none';
-      document.getElementById('sec-pots').style.display = tab === 'pots' ? 'block' : 'none';
-      document.getElementById('sec-ai').style.display = tab === 'ai' ? 'block' : 'none';
+        statsHtml += `
+          <div style="padding: 0.4rem 0; border-bottom: 1px solid rgba(0,0,0,0.06);">
+            <div><b>${ct.label}</b> — última: ${lastDate}</div>
+            <div style="color: var(--sage); font-size: 0.78rem;">${freqText}</div>
+          </div>`;
+      });
+      document.getElementById('vaseDetailStats').innerHTML = statsHtml;
+
+      // HISTÓRICO EM ORDEM CRONOLÓGICA DECRESCENTE (RETROATIVO CORRETO)
+      const sortedHistory = [...history].sort((a, b) => new Date(b.date) - new Date(a.date));
+      const historyEl = document.getElementById('vaseDetailHistory');
       
-      document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-      event.currentTarget.classList.add('active');
+      const typeLabels = {
+        lastWater: '💧 Regou',
+        lastFertilizer: '🧪 Adubou',
+        lastPruning: '✂️ Podou',
+        lastRepot: '🪴 Transbordou',
+        lembrete: '⏰ Lembrete',
+        nota: '📝 Nota'
+      };
+
+      if (sortedHistory.length === 0) {
+        historyEl.innerHTML = '<p style="color:#666; font-size:0.8rem;">Nenhum registro de cuidado ainda.</p>';
+      } else {
+        historyEl.innerHTML = sortedHistory.map(h => `
+          <div class="timeline-item">
+            <span class="timeline-date">${new Date(h.date).toLocaleDateString('pt-BR')} ${new Date(h.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+            <div><b>${typeLabels[h.type] || h.type}:</b> ${h.notes || 'Sem observação'}</div>
+          </div>`).join('');
+      }
+
+      // GALERIA
+      const gallery = vase.photoHistory || [];
+      const galleryEl = document.getElementById('vaseDetailGallery');
+      if (gallery.length === 0) {
+        galleryEl.innerHTML = '<p style="color:#666; grid-column:1/-1; font-size:0.8rem;">Nenhuma foto na galeria.</p>';
+      } else {
+        const sortedGallery = [...gallery].sort((a, b) => new Date(b.date) - new Date(a.date));
+        galleryEl.innerHTML = sortedGallery.map(g => `
+          <div style="text-align:center;">
+            <img src="${g.photo}" style="width:100%; height:100px; object-fit:cover; border-radius:8px; border:1px solid var(--mist);" />
+            <div style="font-size:0.65rem; color:#666; margin-top:0.25rem;">${new Date(g.date).toLocaleDateString('pt-BR')}</div>
+          </div>`).join('');
+      }
+    }
+
+    window.addGalleryPhoto = function(e) {
+      const file = e.target.files[0];
+      if (!file || !currentDetailVaseId) return;
+
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        const photoBase64 = reader.result;
+        const vaseDoc = doc(db, "vases", currentDetailVaseId);
+        try {
+          await updateDoc(vaseDoc, {
+            photo: photoBase64,
+            photoHistory: arrayUnion({ photo: photoBase64, date: new Date().toISOString() })
+          });
+        } catch (err) {
+          alert('Erro ao adicionar foto: ' + err.message);
+        }
+      };
+      e.target.value = '';
     };
 
     // DIAGNÓSTICO IA
     window.runAIDiagnosis = async function() {
       const fileInput = document.getElementById('aiImageInput');
-      const resultDiv = document.getElementById('aiResult');
-
-      if (!fileInput.files[0]) return alert("Selecione uma foto!");
-
       const file = fileInput.files[0];
-      resultDiv.style.display = 'block';
-      resultDiv.innerHTML = "⏳ <b>Analisando detalhes botânicos... Aguarde.</b>";
+      const resultEl = document.getElementById('aiResult');
+
+      if (!file) return alert('Selecione uma foto da planta primeiro.');
+
+      resultEl.style.display = 'block';
+      resultEl.innerHTML = '🔍 Analisando a foto com IA, aguarde...';
 
       try {
         const reader = new FileReader();
@@ -1341,7 +1180,7 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              prompt: "Analise o estado de saúde desta planta, identifique possíveis sintomas, pragas ou deficiências e forneça soluções detalhadas.",
+              prompt: "Analise a saúde desta planta e forneça diagnóstico e tratamentos.",
               imageBase64: base64,
               mimeType: file.type
             })
@@ -1349,20 +1188,15 @@
 
           const data = await response.json();
           if (response.ok && data.resposta) {
-            resultDiv.innerHTML = `<h4>🩺 Relatório Agronômico:</h4><div style="white-space: pre-line; margin-top:0.8rem;">${data.resposta}</div>`;
+            resultEl.innerHTML = `<h4>🩺 Relatório Agronômico:</h4><div style="white-space: pre-line; margin-top:0.8rem;">${data.resposta}</div>`;
           } else {
-            resultDiv.innerHTML = `❌ Erro na análise: ${data.error || 'Falha ao processar'}`;
+            resultEl.innerHTML = `❌ Erro na análise.`;
           }
         };
       } catch (err) {
-        resultDiv.innerHTML = "❌ Erro ao realizar diagnóstico.";
+        resultEl.innerHTML = `❌ Erro ao analisar a imagem.`;
       }
     };
-
-    window.addEventListener('popstate', () => {
-      const activeOverlay = document.querySelector('.modal-overlay.active');
-      if (activeOverlay) activeOverlay.classList.remove('active');
-    });
   </script>
 </body>
 </html>
