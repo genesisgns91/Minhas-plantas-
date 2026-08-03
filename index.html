@@ -1,223 +1,409 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>Minhas Plantas 🌿</title>
-<meta name="description" content="Cuide das suas plantas: regas, adubação, poda, lembretes e fotos por espécie.">
-
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#4a6741">
-<meta name="background-color" content="#f5f0e8">
-<meta name="mobile-web-app-capable" content="yes">
-
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Minhas Plantas">
-<link rel="apple-touch-icon" href="icon-192.png">
-
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
-<style>
-  :root{--ink:#1a1a14;--cream:#f5f0e8;--sage:#7a9e7e;--moss:#4a6741;--terra:#c17a4a;--mist:#d4e0d2;--gold:#b8965a;--red:#c0392b;--blue:#6ba3be}
-  *{box-sizing:border-box;margin:0;padding:0}
-  html{-webkit-text-size-adjust:100%;overscroll-behavior-y:contain}
-  body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);min-height:100vh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
-  button{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Minhas Plantas & Vasos 🌿</title>
   
-  #syncBar{position:fixed;top:0;left:0;right:0;height:3px;background:var(--sage);z-index:999;transform:scaleX(0);transform-origin:left;transition:transform .4s}
-  #syncBar.active{transform:scaleX(1)}
-  #onlineStatus{position:fixed;top:8px;right:12px;font-size:.65rem;font-weight:500;padding:.2rem .7rem;border-radius:50px;z-index:998}
-  #onlineStatus.online{background:#d4f0d4;color:#2e7d32}
-  #onlineStatus.offline{background:#fce8e8;color:var(--red)}
+  <meta name="theme-color" content="#3a5335" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
 
-  header{padding:2.5rem 1.5rem 1.5rem;display:flex;flex-direction:column;align-items:center;text-align:center}
-  .leaf-deco{font-size:2.5rem;margin-bottom:.5rem;opacity:.6;animation:sway 4s ease-in-out infinite}
-  @keyframes sway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
-  h1{font-family:'Playfair Display',serif;font-size:clamp(2rem,5vw,3rem);font-weight:700;color:var(--moss)}
-  .subtitle{font-size:.8rem;font-weight:300;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);margin-top:.4rem}
+  <style>
+    :root {
+      --cream: #f6f4ee;
+      --moss: #3a5335;
+      --sage: #6b8e63;
+      --mist: #dbe4d8;
+      --terra: #c16e41;
+      --gold: #b38b4d;
+      --ink: #1c241b;
+      --white: #ffffff;
+      --red-alert: #d9534f;
+      --shadow: 0 8px 24px rgba(28, 36, 27, 0.08);
+      --radius: 16px;
+    }
 
-  .controls{padding:1rem 1.5rem;display:flex;flex-direction:column;gap:.8rem;max-width:900px;margin:0 auto}
-  .search-row{display:flex;gap:.6rem;align-items:center}
-  .search-wrap{position:relative;flex:1}
-  .search-wrap input{width:100%;padding:.75rem 1rem .75rem 2.5rem;border:1.5px solid var(--mist);border-radius:50px;background:white;font-size:.9rem;outline:none}
-  .search-icon{position:absolute;left:1rem;top:50%;transform:translateY(-50%);opacity:.4}
-  
-  .btn-add{padding:.65rem 1.1rem;border-radius:50px;border:none;background:var(--terra);color:white;font-size:.82rem;font-weight:500;cursor:pointer}
-  
-  .species-groups{display:flex;flex-direction:column;gap:1.4rem;padding:1rem 1.5rem 3rem;max-width:900px;margin:0 auto}
-  .species-group{background:white;border-radius:18px;border:1.5px solid var(--mist);overflow:hidden}
-  .species-header{display:flex;align-items:center;gap:.8rem;padding:.75rem 1.2rem;cursor:pointer;position:relative}
-  .species-name{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--ink)}
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { font-family: 'DM Sans', sans-serif; background-color: var(--cream); color: var(--ink); min-height: 100vh; display: flex; flex-direction: column; }
 
-  /* Modal */
-  .modal-overlay{position:fixed;inset:0;background:rgba(26,26,20,.5);backdrop-filter:blur(4px);z-index:500;display:flex;align-items:flex-end;justify-content:center;padding:1rem;opacity:0;pointer-events:none;transition:opacity .25s}
-  .modal-overlay.open{opacity:1;pointer-events:all}
-  .modal{background:var(--cream);border-radius:20px;padding:1.5rem;width:100%;max-width:440px;max-height:90vh;overflow-y:auto}
-  
-  /* Botões e Inputs */
-  .camera-btn-group{display:flex;gap:.5rem;margin-top:.5rem}
-  .btn-cam{flex:1;padding:.6rem;border-radius:10px;border:1.5px solid var(--sage);background:white;color:var(--moss);font-size:.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.4rem}
-</style>
+    .app-layout { display: flex; flex: 1; width: 100%; max-width: 1400px; margin: 0 auto; }
+    .sidebar { width: 280px; background: var(--moss); color: var(--white); padding: 2rem 1.5rem; display: flex; flex-direction: column; gap: 2rem; flex-shrink: 0; }
+    .brand { display: flex; align-items: center; gap: 0.75rem; }
+    .brand h1 { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; }
+    .nav-btn { display: flex; align-items: center; gap: 0.8rem; padding: 0.85rem 1rem; border: none; background: transparent; color: rgba(255, 255, 255, 0.8); font-size: 0.95rem; font-weight: 500; border-radius: 12px; cursor: pointer; text-align: left; transition: all 0.2s; width: 100%; }
+    .nav-btn:hover, .nav-btn.active { background: rgba(255, 255, 255, 0.15); color: var(--white); }
+
+    .main-content { flex: 1; padding: 2rem; padding-bottom: 6rem; max-width: 1100px; }
+    .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
+    .header-title h2 { font-family: 'Playfair Display', serif; font-size: 2rem; color: var(--moss); }
+    .header-title p { font-size: 0.88rem; color: var(--gold); }
+
+    .btn-primary { background: var(--terra); color: var(--white); border: none; padding: 0.75rem 1.4rem; border-radius: 50px; font-weight: 600; font-size: 0.9rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; box-shadow: 0 4px 12px rgba(193, 110, 65, 0.3); }
+    .btn-secondary { background: var(--sage); color: white; border: none; padding: 0.6rem 1rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
+
+    .species-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
+    .species-card { background: var(--white); border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow); cursor: pointer; transition: transform 0.2s; position: relative; border: 1px solid rgba(0,0,0,0.04); }
+    .species-card:hover { transform: translateY(-4px); }
+
+    .vases-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.2rem; margin-top: 1rem; }
+    .vase-card { background: var(--white); border-radius: 12px; padding: 1rem; border: 1px solid var(--mist); display: flex; flex-direction: column; gap: 0.8rem; }
+    .vase-img { width: 100%; height: 180px; object-fit: cover; border-radius: 8px; background: var(--mist); }
+
+    .care-badge { display: inline-block; background: var(--cream); padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; margin-right: 0.4rem; margin-bottom: 0.4rem; }
+
+    .modal-overlay { position: fixed; inset: 0; background: rgba(28, 36, 27, 0.4); backdrop-filter: blur(4px); z-index: 200; display: flex; justify-content: flex-end; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+    .modal-overlay.active { opacity: 1; pointer-events: auto; }
+    .drawer { background: var(--white); width: 100%; max-width: 650px; height: 100%; padding: 2rem; overflow-y: auto; transform: translateX(100%); transition: transform 0.3s; display: flex; flex-direction: column; gap: 1.5rem; }
+    .modal-overlay.active .drawer { transform: translateX(0); }
+    .drawer-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--mist); padding-bottom: 1rem; }
+    .btn-close { background: transparent; border: none; font-size: 1.5rem; cursor: pointer; }
+
+    .form-group { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem; }
+    .form-group label { font-size: 0.8rem; font-weight: 700; color: var(--moss); text-transform: uppercase; }
+    .form-control { padding: 0.8rem 1rem; border: 1.5px solid var(--mist); border-radius: 10px; font-family: inherit; font-size: 0.9rem; outline: none; }
+
+    .bottom-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--white); border-top: 1px solid var(--mist); padding: 0.6rem; z-index: 100; justify-content: space-around; }
+
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .bottom-nav { display: flex; }
+      .main-content { padding: 1rem; padding-bottom: 5.5rem; }
+      .drawer { max-width: 100%; height: 95vh; border-radius: 20px 20px 0 0; transform: translateY(100%); }
+      .modal-overlay { align-items: flex-end; }
+      .modal-overlay.active .drawer { transform: translateY(0); }
+    }
+  </style>
 </head>
 <body>
 
-<div id="syncBar"></div>
-<div id="onlineStatus" class="online">● Conectado</div>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <span style="font-size: 1.8rem;">🌿</span>
+        <h1>Minhas Plantas</h1>
+      </div>
+      <nav>
+        <button class="nav-btn active" onclick="switchTab('species')">🌱 Espécies & Vasos</button>
+        <button class="nav-btn" onclick="switchTab('ai')">🤖 Diagnóstico IA</button>
+      </nav>
+    </aside>
 
-<header>
-  <div class="leaf-deco">🌿</div>
-  <h1>Minhas Plantas</h1>
-  <div class="subtitle">Sincronizado com Firebase</div>
-</header>
+    <main class="main-content">
+      <section id="sec-species">
+        <div class="header-bar">
+          <div class="header-title">
+            <h2>Minhas Espécies</h2>
+            <p>Selecione uma espécie para ver a ficha de cuidados e seus vasos</p>
+          </div>
+          <button class="btn-primary" onclick="openDrawer('drawerAddSpecies')">
+            <span>+</span> Nova Espécie
+          </button>
+        </div>
 
-<main class="controls">
-  <div class="search-row">
-    <div class="search-wrap">
-      <span class="search-icon">🔍</span>
-      <input type="text" id="searchInput" placeholder="Buscar espécies ou vasos..." oninput="renderPlants()">
-    </div>
-    <button class="btn-add" onclick="openAddModal()">+ Nova Planta</button>
-  </div>
-</main>
+        <div class="species-grid" id="speciesGrid">
+          <p style="color: #666;">Carregando espécies...</p>
+        </div>
+      </section>
 
-<div id="plantContainer" class="species-groups"></div>
+      <section id="sec-species-detail" style="display: none;">
+        <button onclick="backToSpecies()" style="background:none; border:none; color:var(--moss); font-weight:700; cursor:pointer; margin-bottom:1rem; font-size:1rem;">
+          ← Voltar para Espécies
+        </button>
 
-<input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="handleImageCaptured(event)">
-<input type="file" id="galleryInput" accept="image/*" style="display:none" onchange="handleImageCaptured(event)">
+        <div class="header-bar" style="margin-bottom: 1rem;">
+          <div class="header-title">
+            <h2 id="detailSpeciesName">Nome da Espécie</h2>
+            <p id="detailSpeciesScientific" style="font-style: italic; color: var(--sage);"></p>
+          </div>
+          <button class="btn-primary" onclick="openAddVaseModal()">
+            🪴 Adicionar Vaso / Exemplar
+          </button>
+        </div>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-  import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        <div style="background: var(--white); padding: 1.2rem; border-radius: var(--radius); margin-bottom: 2rem; box-shadow: var(--shadow);">
+          <h4 style="color: var(--moss); margin-bottom: 0.8rem; font-family: 'Playfair Display', serif;">📋 Guias & Cuidados da Espécie</h4>
+          <div id="detailSpeciesCare" style="white-space: pre-line; font-size: 0.85rem; line-height: 1.6; background: var(--cream); padding: 1rem; border-radius: 10px;"></div>
+        </div>
 
-  // SUAS CONFIGURAÇÕES DO FIREBASE (substitua com suas chaves reais):
-  const firebaseConfig = {
-    apiKey: "Sua_API_Key",
-    authDomain: "seu-projeto.firebaseapp.com",
-    projectId: "seu-projeto-id",
-    storageBucket: "seu-projeto.appspot.com",
-    messagingSenderId: "000000000000",
-    appId: "1:000000000000:web:000000000000"
-  };
+        <h3 style="color: var(--moss); font-family: 'Playfair Display', serif; margin-bottom: 1rem;">🪴 Vasos de <span id="detailSpeciesNameVases"></span></h3>
+        <div class="vases-grid" id="vasesGrid"></div>
+      </section>
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-
-  window.plantData = [];
-
-  // Sincronização em tempo real do Firebase
-  const syncFirebase = () => {
-    const syncBar = document.getElementById('syncBar');
-    syncBar.classList.add('active');
-
-    onSnapshot(collection(db, "plantas"), (snapshot) => {
-      window.plantData = [];
-      snapshot.forEach((docSnap) => {
-        window.plantData.push({ id: docSnap.id, ...docSnap.data() });
-      });
-      // Salva cópia local
-      localStorage.setItem('my_plants_backup', JSON.stringify(window.plantData));
-      renderPlants();
-      syncBar.classList.remove('active');
-    }, (error) => {
-      console.warn("Erro de conexão Firebase, usando dados locais:", error);
-      const local = localStorage.getItem('my_plants_backup');
-      if (local) window.plantData = JSON.parse(local);
-      renderPlants();
-      syncBar.classList.remove('active');
-    });
-  };
-
-  // Salvar no Firebase
-  window.savePlantToFirebase = async (plantObject) => {
-    try {
-      const docRef = doc(db, "plantas", plantObject.id || String(Date.now()));
-      await setDoc(docRef, plantObject, { merge: true });
-    } catch (e) {
-      console.error("Erro ao salvar no Firestore:", e);
-    }
-  };
-
-  // Excluir do Firebase
-  window.deletePlantFromFirebase = async (plantId) => {
-    try {
-      await deleteDoc(doc(db, "plantas", plantId));
-    } catch (e) {
-      console.error("Erro ao excluir do Firestore:", e);
-    }
-  };
-
-  window.addEventListener('DOMContentLoaded', syncFirebase);
-</script>
-
-<script>
-  function renderPlants() {
-    const container = document.getElementById('plantContainer');
-    const search = document.getElementById('searchInput').value.toLowerCase();
-    
-    if (!window.plantData || window.plantData.length === 0) {
-      container.innerHTML = '<div class="empty">Nenhuma planta cadastrada ainda.</div>';
-      return;
-    }
-
-    const filtered = window.plantData.filter(p => 
-      (p.name && p.name.toLowerCase().includes(search)) || 
-      (p.species && p.species.toLowerCase().includes(search))
-    );
-
-    container.innerHTML = filtered.map(p => `
-      <div class="species-group">
-        <div class="species-header">
-          <span style="font-size:1.8rem">${p.emoji || '🌿'}</span>
-          <div>
-            <div class="species-name">${p.name || 'Sem Nome'}</div>
-            <div style="font-size:0.75rem; color:#666">${p.species || 'Espécie não informada'}</div>
+      <section id="sec-ai" style="display: none;">
+        <div class="header-bar">
+          <div class="header-title">
+            <h2>Diagnóstico de Saúde 🩺</h2>
+            <p>Envie uma foto para a IA analisar pragas ou deficiências</p>
           </div>
         </div>
+        <div style="background: white; padding: 1.5rem; border-radius: var(--radius); box-shadow: var(--shadow);">
+          <div class="form-group">
+            <label>Foto da Planta</label>
+            <input type="file" id="aiImageInput" accept="image/*" class="form-control" />
+          </div>
+          <button class="btn-primary" style="width: 100%; justify-content: center;" onclick="runAIDiagnosis()">
+            🔍 Analisar com IA
+          </button>
+          <div id="aiResult" style="margin-top: 1.5rem; display: none; padding: 1.2rem; background: var(--cream); border-radius: 12px; line-height: 1.6;"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <nav class="bottom-nav">
+    <button class="nav-btn active" onclick="switchTab('species')">
+      <span>🌱</span> Espécies
+    </button>
+    <button class="nav-btn" onclick="switchTab('ai')">
+      <span>🤖</span> Diagnóstico
+    </button>
+  </nav>
+
+  <div class="modal-overlay" id="drawerAddSpecies">
+    <div class="drawer">
+      <div class="drawer-header">
+        <h3>Cadastrar Nova Espécie</h3>
+        <button class="btn-close" onclick="closeActiveDrawer()">&times;</button>
       </div>
-    `).join('');
-  }
 
-  // Acionar captura de imagem via Câmera ou Galeria
-  window.triggerCamera = function() {
-    document.getElementById('cameraInput').click();
-  };
+      <form id="formSpecies" onsubmit="saveSpecies(event)">
+        <div class="form-group">
+          <label>Nome Popular</label>
+          <input type="text" id="specieName" class="form-control" placeholder="Ex: Jiboia, Samambaia, Monstera" required />
+          <button type="button" class="btn-secondary" style="margin-top:0.4rem;" onclick="autoFillWithAI()">
+            ✨ Preencher Ficha com IA
+          </button>
+        </div>
 
-  window.triggerGallery = function() {
-    document.getElementById('galleryInput').click();
-  };
+        <div class="form-group">
+          <label>Nome Científico</label>
+          <input type="text" id="specieScientific" class="form-control" placeholder="Epipremnum aureum" />
+        </div>
 
-  window.handleImageCaptured = function(event) {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const base64Image = e.target.result;
-        alert("Imagem carregada com sucesso! Enviando para análise de IA...");
-        // Adicionar chamada do seu modelo de IA enviando o base64Image
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+        <div class="form-group">
+          <label>Ficha Técnica / Cuidados Recomendados</label>
+          <textarea id="specieCareText" class="form-control" rows="6" placeholder="A IA vai preencher as orientações aqui..."></textarea>
+        </div>
 
-  function openAddModal() {
-    const name = prompt("Nome da Planta:");
-    const species = prompt("Espécie:");
-    if (name) {
-      const newPlant = {
-        id: "plant_" + Date.now(),
-        name: name,
-        species: species || "",
-        emoji: "🌿",
-        createdAt: new Date().toISOString()
-      };
-      if (window.savePlantToFirebase) {
-        window.savePlantToFirebase(newPlant);
+        <button type="submit" id="btnSaveSpecies" class="btn-primary" style="width: 100%; justify-content: center;">
+          Salvar Espécie
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="drawerAddVase">
+    <div class="drawer">
+      <div class="drawer-header">
+        <h3 id="vaseModalTitle">Cadastrar Novo Vaso</h3>
+        <button class="btn-close" onclick="closeActiveDrawer()">&times;</button>
+      </div>
+
+      <form id="formVase" onsubmit="saveVase(event)">
+        <div class="form-group">
+          <label>Nome do Vaso / Local</label>
+          <input type="text" id="vaseName" class="form-control" placeholder="Ex: Vaso 1 da Sala, Vaso Pendente Varanda" required />
+        </div>
+
+        <div class="form-group">
+          <label>Foto do Vaso</label>
+          <input type="file" id="vasePhotoInput" accept="image/*" class="form-control" />
+        </div>
+
+        <div class="form-group">
+          <label>Data do Último Transbordo / Transplante (Troca de Vaso)</label>
+          <input type="date" id="vaseRepotDate" class="form-control" />
+        </div>
+
+        <div class="form-group">
+          <label>Tamanho/Material do Vaso</label>
+          <input type="text" id="vaseSize" class="form-control" placeholder="Ex: Vaso Auto-irrigável 25cm / Barro 5L" />
+        </div>
+
+        <button type="submit" id="btnSaveVase" class="btn-primary" style="width: 100%; justify-content: center;">
+          Salvar Vaso
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    // INSIRA AS CONFIGURAÇÕES DO SEU PROJETO FIREBASE AQUI
+    const firebaseConfig = {
+      apiKey: "SEU_API_KEY",
+      authDomain: "SEU_PROJECT.firebaseapp.com",
+      projectId: "SEU_PROJECT_ID",
+      storageBucket: "SEU_PROJECT.appspot.com",
+      messagingSenderId: "SEU_SENDER_ID",
+      appId: "SEU_APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    
+    const speciesCol = collection(db, "species");
+    const vasesCol = collection(db, "vases");
+
+    const WORKER_URL = "https://shiny-sky-21dd.genesisgns.workers.dev/";
+
+    let allSpecies = [];
+    let allVases = [];
+    let currentSelectedSpecies = null;
+
+    // ESCUTAR BANCO EM TEMPO REAL
+    onSnapshot(speciesCol, (snapshot) => {
+      allSpecies = snapshot.docs.map(d => ({ firestoreId: d.id, ...d.data() }));
+      renderSpeciesGrid();
+    });
+
+    onSnapshot(vasesCol, (snapshot) => {
+      allVases = snapshot.docs.map(d => ({ firestoreId: d.id, ...d.data() }));
+      if (currentSelectedSpecies) {
+        renderVasesForSpecies(currentSelectedSpecies.firestoreId);
       }
-    }
-  }
-</script>
+    });
 
-</body>
-</html>
+    // RENDERIZAR CARDS DE ESPÉCIES
+    function renderSpeciesGrid() {
+      const container = document.getElementById('speciesGrid');
+      container.innerHTML = '';
+
+      if (allSpecies.length === 0) {
+        container.innerHTML = '<p style="color:#666;">Nenhuma espécie cadastrada ainda.</p>';
+        return;
+      }
+
+      allSpecies.forEach(sp => {
+        const countVases = allVases.filter(v => v.speciesId === sp.firestoreId).length;
+
+        const card = document.createElement('div');
+        card.className = 'species-card';
+        card.onclick = () => openSpeciesDetail(sp);
+
+        card.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div style="font-size:2rem; background:var(--cream); padding:0.4rem; border-radius:10px;">🪴</div>
+            <button onclick="event.stopPropagation(); deleteSpecies('${sp.firestoreId}')" style="background:none; border:none; color:#aaa; font-size:1.2rem; cursor:pointer;">&times;</button>
+          </div>
+          <h3 style="font-family:'Playfair Display', serif; margin-top:0.6rem; color:var(--ink);">${sp.name}</h3>
+          <p style="font-size:0.8rem; font-style:italic; color:var(--sage);">${sp.scientific || ''}</p>
+          <div style="margin-top:1rem; font-size:0.85rem; font-weight:700; color:var(--terra);">
+            🪴 ${countVases} ${countVases === 1 ? 'Vaso cadastrado' : 'Vasos cadastrados'}
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // ABRIR DETALHES DA ESPÉCIE & SEUS VASOS
+    window.openSpeciesDetail = function(species) {
+      currentSelectedSpecies = species;
+      document.getElementById('sec-species').style.display = 'none';
+      document.getElementById('sec-species-detail').style.display = 'block';
+
+      document.getElementById('detailSpeciesName').innerText = species.name;
+      document.getElementById('detailSpeciesNameVases').innerText = species.name;
+      document.getElementById('detailSpeciesScientific').innerText = species.scientific || '';
+      document.getElementById('detailSpeciesCare').innerText = species.care || 'Nenhuma instrução cadastrada.';
+
+      renderVasesForSpecies(species.firestoreId);
+    };
+
+    window.backToSpecies = function() {
+      currentSelectedSpecies = null;
+      document.getElementById('sec-species-detail').style.display = 'none';
+      document.getElementById('sec-species').style.display = 'block';
+    };
+
+    // RENDERIZAR VASOS DE UMA ESPÉCIE
+    function renderVasesForSpecies(speciesId) {
+      const container = document.getElementById('vasesGrid');
+      container.innerHTML = '';
+
+      const myVases = allVases.filter(v => v.speciesId === speciesId);
+
+      if (myVases.length === 0) {
+        container.innerHTML = '<p style="color:#666; grid-column: 1/-1;">Você ainda não cadastrou nenhum vaso para esta espécie.</p>';
+        return;
+      }
+
+      myVases.forEach(vase => {
+        const lastWater = vase.lastWater ? new Date(vase.lastWater).toLocaleDateString('pt-BR') : 'Nunca registrado';
+        const lastFertilizer = vase.lastFertilizer ? new Date(vase.lastFertilizer).toLocaleDateString('pt-BR') : 'Nunca registrado';
+        const lastPruning = vase.lastPruning ? new Date(vase.lastPruning).toLocaleDateString('pt-BR') : 'Nunca registrado';
+        const lastRepot = vase.lastRepot ? new Date(vase.lastRepot).toLocaleDateString('pt-BR') : 'Não informado';
+
+        const card = document.createElement('div');
+        card.className = 'vase-card';
+        card.innerHTML = `
+          ${vase.photo ? `<img src="${vase.photo}" class="vase-img" />` : `<div class="vase-img" style="display:flex; align-items:center; justify-content:center; color:#aaa;">Sem foto do vaso</div>`}
+          
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h4 style="font-size:1.1rem; color:var(--moss);">${vase.name}</h4>
+            <button onclick="deleteVase('${vase.firestoreId}')" style="background:none; border:none; color:#aaa; font-size:1.2rem; cursor:pointer;">&times;</button>
+          </div>
+
+          <p style="font-size:0.75rem; color:#666;"><b>Tamanho/Material:</b> ${vase.size || 'Padrão'}</p>
+
+          <div style="background:var(--cream); padding:0.6rem; border-radius:8px; font-size:0.78rem;">
+            <div>💧 <b>Última Rega:</b> ${lastWater}</div>
+            <div>🧪 <b>Última Adubação:</b> ${lastFertilizer}</div>
+            <div>✂️ <b>Última Poda:</b> ${lastPruning}</div>
+            <div>🪴 <b>Último Transbordo:</b> ${lastRepot}</div>
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.4rem;">
+            <button class="btn-secondary" style="font-size:0.75rem;" onclick="recordCare('${vase.firestoreId}', 'lastWater')">💧 Regar Hoje</button>
+            <button class="btn-secondary" style="font-size:0.75rem;" onclick="recordCare('${vase.firestoreId}', 'lastFertilizer')">🧪 Adubar Hoje</button>
+            <button class="btn-secondary" style="font-size:0.75rem;" onclick="recordCare('${vase.firestoreId}', 'lastPruning')">✂️ Podar Hoje</button>
+            <button class="btn-secondary" style="font-size:0.75rem;" onclick="recordCare('${vase.firestoreId}', 'lastRepot')">🪴 Transbordar</button>
+          </div>
+
+          <label class="btn-secondary" style="text-align:center; cursor:pointer; font-size:0.75rem; background:var(--moss);">
+            📸 Atualizar Foto do Vaso
+            <input type="file" accept="image/*" style="display:none;" onchange="updateVasePhoto(event, '${vase.firestoreId}')" />
+          </label>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // REGISTRAR CUIDADO (REGAR, ADUBAR, PODAR, TRANSBORDAR)
+    window.recordCare = async function(vaseId, careType) {
+      const now = new Date().toISOString();
+      const vaseDoc = doc(db, "vases", vaseId);
+
+      try {
+        await updateDoc(vaseDoc, {
+          [careType]: now,
+          history: arrayUnion({ type: careType, date: now })
+        });
+      } catch (err) {
+        alert("Erro ao registrar ação: " + err.message);
+      }
+    };
+
+    // ATUALIZAR FOTO DO VASO (EVOLUÇÃO)
+    window.updateVasePhoto = function(e, vaseId) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        const photoBase64 = reader.result;
+        const vaseDoc = doc(db, "vases", vaseId);
+
+        await updateDoc(vaseDoc, {
+          photo: photoBase64,
+          photoHistory: arrayUnion({ photo: photoBase64, date: new Date().toISOString() })
+        });
+      };
+    };
+
+    // SALVAR 
