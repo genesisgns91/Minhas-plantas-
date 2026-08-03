@@ -185,7 +185,7 @@
 
     .species-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
       gap: 1.5rem;
     }
 
@@ -241,7 +241,7 @@
       background: var(--cream);
       padding: 0.8rem;
       border-radius: 10px;
-      max-height: 250px;
+      max-height: 300px;
       overflow-y: auto;
     }
 
@@ -287,7 +287,7 @@
     .drawer {
       background: var(--white);
       width: 100%;
-      max-width: 550px;
+      max-width: 600px;
       height: 100%;
       padding: 2rem;
       overflow-y: auto;
@@ -345,7 +345,7 @@
       background: linear-gradient(135deg, #6b8e63 0%, #3a5335 100%);
       color: white;
       border: none;
-      padding: 0.7rem 1rem;
+      padding: 0.75rem 1rem;
       border-radius: 8px;
       font-size: 0.85rem;
       font-weight: 600;
@@ -357,6 +357,16 @@
       margin-top: 0.5rem;
     }
 
+    .form-section-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--terra);
+      border-bottom: 1px solid var(--mist);
+      padding-bottom: 0.4rem;
+      margin-top: 1rem;
+      margin-bottom: 0.8rem;
+    }
+
     @media (max-width: 768px) {
       .sidebar { display: none; }
       .bottom-nav { display: flex; }
@@ -364,7 +374,7 @@
       .modal-overlay { align-items: flex-end; }
       .drawer {
         max-width: 100%;
-        height: 90vh;
+        height: 92vh;
         border-radius: 20px 20px 0 0;
         transform: translateY(100%);
       }
@@ -447,7 +457,7 @@
           <label>Nome Popular</label>
           <input type="text" id="specieName" class="form-control" placeholder="Ex: Jiboia, Monstera, Suculenta..." required />
           <button type="button" class="btn-ai-autofill" onclick="autoFillWithAI()">
-            ✨ Gerar Ficha Completa de Cuidados com IA
+            ✨ Preencher Todos os Campos com IA
           </button>
         </div>
 
@@ -456,14 +466,61 @@
           <input type="text" id="specieScientific" class="form-control" placeholder="Epipremnum aureum" />
         </div>
 
+        <div class="form-section-title">📋 FICHA TÉCNICA DETALHADA</div>
+
         <div class="form-group">
-          <label>Frequência de Regas (Dias)</label>
+          <label>Categoria</label>
+          <input type="text" id="fieldCategory" class="form-control" placeholder="Ex: Trepadeira / Ornamental folhosa" />
+        </div>
+
+        <div class="form-group">
+          <label>Luz & Sol Directo</label>
+          <input type="text" id="fieldLight" class="form-control" placeholder="Ex: Luz Indireta Filtrada. Não tolera sol direto" />
+        </div>
+
+        <div class="form-group">
+          <label>Necessidade de Rega & Frequência</label>
+          <input type="text" id="fieldWater" class="form-control" placeholder="Ex: Moderada (Regar a cada 5 dias)" />
+        </div>
+
+        <div class="form-group">
+          <label>Frequência em Dias (apenas número)</label>
           <input type="number" id="specieWaterDays" class="form-control" placeholder="5" />
         </div>
 
         <div class="form-group">
-          <label>Ficha Técnica & Cuidados Avançados</label>
-          <textarea id="specieCare" class="form-control" rows="10" placeholder="A IA preencherá automaticamente com Categoria, Luz/Sol, Adubação Caseira, Poda, Umidade e Dicas..."></textarea>
+          <label>Tolerância a Poda</label>
+          <input type="text" id="fieldPruning" class="form-control" placeholder="Ex: Regular para controle de tamanho" />
+        </div>
+
+        <div class="form-group">
+          <label>Umidade do Ar</label>
+          <input type="text" id="fieldHumidity" class="form-control" placeholder="Ex: Alta umidade (>60%). Borrifar apenas folhas" />
+        </div>
+
+        <div class="form-group">
+          <label>Tipo de Solo</label>
+          <input type="text" id="fieldSoil" class="form-control" placeholder="Ex: Substrato leve, orgânico e bem drenado" />
+        </div>
+
+        <div class="form-group">
+          <label>Adubação Comercial</label>
+          <input type="text" id="fieldFertilizer" class="form-control" placeholder="Ex: NPK 10-10-10 mensalmente" />
+        </div>
+
+        <div class="form-group">
+          <label>Adubação Natural (Caseira)</label>
+          <input type="text" id="fieldNaturalFertilizer" class="form-control" placeholder="Ex: Chá de casca de banana, borra de café" />
+        </div>
+
+        <div class="form-group">
+          <label>Dica Extra de Cultivo</label>
+          <textarea id="fieldExtraTips" class="form-control" rows="2" placeholder="Ex: Limpar as folhas com pano úmido"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Observações & O que Evitar</label>
+          <textarea id="fieldObservations" class="form-control" rows="2" placeholder="Ex: Evitar encharcamento para não apodrecer raízes"></textarea>
         </div>
 
         <div class="form-group">
@@ -493,7 +550,16 @@
         emoji: "🌿",
         waterDays: 5,
         petSafety: "toxic",
-        care: "🏷️ CATEGORIA: Trepadeira / Ornamental folhosa\n☀️ ILUMINAÇÃO: Luz Indireta Filtrada (4h a 6h diárias). Sol direto queima as folhas.\n💧 REGA: Nível Moderado (a cada 5 dias)\n✂️ PODA: Regular para controle de tamanho\n🌫️ UMIDADE DO AR: Ama alta umidade. Pode borrifar folhas.\n🪴 SOLO: Substrato orgânico e drenável\n🧪 ADUBAÇÃO COMERCIAL: NPK 10-10-10 mensal\n🍌 ADUBAÇÃO NATURAL: Chá de casca de banana e borra de café curtida\n✨ DICA EXTRA: Limpe as folhas com pano úmido para melhorar a fotossíntese."
+        category: "Trepadeira / Ornamental folhosa",
+        light: "Luz Indireta Filtrada (4-6h/dia). Não tolera sol direto",
+        water: "Moderada (a cada 5 dias)",
+        pruning: "Regular para conter crescimento",
+        humidity: "Ama alta umidade. Borrifar folhas",
+        soil: "Substrato orgânico e drenável",
+        fertilizer: "NPK 10-10-10 mensal",
+        naturalFertilizer: "Chá de casca de banana e borra de café curtida",
+        extraTips: "Limpe as folhas com pano úmido para melhorar a fotossíntese.",
+        observations: "Evite solo encharcado para não apodrecer as raízes."
       }
     ];
 
@@ -554,7 +620,18 @@
               </div>
             </div>
           </div>
-          ${item.care ? `<div class="species-care-text">${item.care}</div>` : ''}
+          <div class="species-care-text">
+${item.category ? `🏷️ <b>CATEGORIA:</b> ${item.category}\n` : ''}
+${item.light ? `☀️ <b>LUZ & SOL:</b> ${item.light}\n` : ''}
+${item.water ? `💧 <b>REGA:</b> ${item.water}\n` : ''}
+${item.pruning ? `✂️ <b>PODA:</b> ${item.pruning}\n` : ''}
+${item.humidity ? `🌫️ <b>UMIDADE:</b> ${item.humidity}\n` : ''}
+${item.soil ? `🪴 <b>SOLO:</b> ${item.soil}\n` : ''}
+${item.fertilizer ? `🧪 <b>ADUBAÇÃO COMERCIAL:</b> ${item.fertilizer}\n` : ''}
+${item.naturalFertilizer ? `🍌 <b>ADUBAÇÃO NATURAL:</b> ${item.naturalFertilizer}\n` : ''}
+${item.extraTips ? `✨ <b>DICA EXTRA:</b> ${item.extraTips}\n` : ''}
+${item.observations ? `⚠️ <b>OBSERVAÇÕES:</b> ${item.observations}` : ''}
+          </div>
         `;
         container.appendChild(card);
       });
@@ -565,31 +642,27 @@
       if (!name) return alert('Digite o nome da planta primeiro!');
 
       const btn = document.querySelector('.btn-ai-autofill');
-      btn.innerText = "⏳ Gerando Ficha Completa...";
+      btn.innerText = "⏳ Preenchendo os Campos...";
       btn.disabled = true;
 
       const prompt = `
-      Você é um botânico e agrônomo especialista. Forneça uma ficha botânica completa e ultra detalhada sobre a planta '${name}'.
+      Você é um botânico especialista. Forneça dados de cultivo sobre a planta '${name}'.
       Responda EXCLUSIVAMENTE em formato JSON VÁLIDO sem marcações de código markdown (sem \`\`\`json):
 
       {
-        "scientific_name": "Nome científico exato com autoria se aplicável",
-        "category": "Ex: Ornamental folhosa, Suculenta / Cacto, Tropical úmida, Comestível / Erva, Trepadeira, Epífita, Frutífera",
+        "scientific_name": "Nome científico exato",
+        "category": "Ex: Ornamental folhosa, Suculenta / Cacto, Tropical úmida, Trepadeira, etc.",
+        "light": "Ex: Sol Pleno / Meia Sombra (4 a 6h/dia). Sol direto na folha: Sim/Não",
+        "water": "Ex: Moderada (Regar a cada X dias ao secar o solo)",
         "water_days": 5,
-        "water_need": "Muito Baixa / Baixa / Moderada / Alta / Muito Alta",
-        "light": "Sol Pleno / Meia Sombra / Sombra / Luz Indireta Filtrada",
-        "light_hours": "Ex: 4 a 6 horas de luz por dia",
-        "direct_sun_on_leaf": "Sim/Não (e se queima as folhas facilmente)",
-        "pruning_tolerance": "Constante / Regular / Moderada / Baixa / Nunca podar",
-        "air_humidity": "Ex: Ama alta umidade (>60%), Borrifar apenas folhas (nunca flores), Prefere clima seco, Não borrifar nunca",
-        "soil_type": "Ex: Substrato altamente drenável com perlita e areia / Orgânico e rico em húmus",
-        "fertilizer_freq": "Semanal / A cada rega / Mensal / A cada estação / 1x ao ano / Nunca",
-        "fertilizer_type": "Ex: NPK 10-10-10 para folhagem, NPK 04-14-08 para flor, Húmus de Minhoca, Torta de Mamona, Farinha de Ossos",
-        "natural_fertilizer": "Ex: Chá de casca de banana (Potássio), Borra de café curtida (Nitrogênio), Água do cozimento de ovos, Casca de ovo moída (Cálcio), Água de arroz",
-        "extra_tips": "Dica de ouro de cultivo e manutenção",
-        "observations": "O que NUNCA fazer, principais pragas sensíveis e sinais de estresse",
-        "pet_toxic": true,
-        "pet_warning": "Explicação detalhada sobre toxidade para cães e gatos e sintomas"
+        "pruning": "Ex: Regular / Moderada / Baixa / Nunca podar",
+        "humidity": "Ex: Ama alta umidade. Borrifar apenas folhas (nunca flores)",
+        "soil": "Ex: Substrato drenável com areia e matéria orgânica",
+        "fertilizer": "Ex: NPK 10-10-10 a cada 30 dias",
+        "natural_fertilizer": "Ex: Chá de casca de banana, borra de café, água de cozimento de ovos",
+        "extra_tips": "Dica prática de ouro para cultivo",
+        "observations": "O que NUNCA fazer e principais cuidados",
+        "pet_toxic": true
       }
       `;
 
@@ -606,32 +679,28 @@
           const cleanedText = data.resposta.replace(/```json/g, '').replace(/```/g, '').trim();
           const parsed = JSON.parse(cleanedText);
 
-          if (document.getElementById('specieScientific')) document.getElementById('specieScientific').value = parsed.scientific_name || '';
-          if (document.getElementById('specieWaterDays')) document.getElementById('specieWaterDays').value = parsed.water_days || 5;
-          if (document.getElementById('speciePetSafety')) document.getElementById('speciePetSafety').value = parsed.pet_toxic ? 'toxic' : 'safe';
+          // Preenche CADA CAMPO DO FORMULÁRIO INDIVIDUALMENTE
+          document.getElementById('specieScientific').value = parsed.scientific_name || '';
+          document.getElementById('fieldCategory').value = parsed.category || '';
+          document.getElementById('fieldLight').value = parsed.light || '';
+          document.getElementById('fieldWater').value = parsed.water || '';
+          document.getElementById('specieWaterDays').value = parsed.water_days || 5;
+          document.getElementById('fieldPruning').value = parsed.pruning || '';
+          document.getElementById('fieldHumidity').value = parsed.humidity || '';
+          document.getElementById('fieldSoil').value = parsed.soil || '';
+          document.getElementById('fieldFertilizer').value = parsed.fertilizer || '';
+          document.getElementById('fieldNaturalFertilizer').value = parsed.natural_fertilizer || '';
+          document.getElementById('fieldExtraTips').value = parsed.extra_tips || '';
+          document.getElementById('fieldObservations').value = parsed.observations || '';
+          document.getElementById('speciePetSafety').value = parsed.pet_toxic ? 'toxic' : 'safe';
 
-          const fullCareDetails = `🏷️ CATEGORIA: ${parsed.category || 'N/A'}
-☀️ ILUMINAÇÃO: ${parsed.light} (${parsed.light_hours}). Sol direto na folha: ${parsed.direct_sun_on_leaf}
-💧 REGA: Nível ${parsed.water_need} (Frequência média: a cada ${parsed.water_days} dias)
-✂️ PODA: ${parsed.pruning_tolerance}
-🌫️ UMIDADE DO AR: ${parsed.air_humidity}
-🪴 SOLO: ${parsed.soil_type}
-🧪 ADUBAÇÃO COMERCIAL: ${parsed.fertilizer_type} (${parsed.fertilizer_freq})
-🍌 ADUBAÇÃO NATURAL: ${parsed.natural_fertilizer}
-✨ DICA EXTRA: ${parsed.extra_tips}
-⚠️ OBSERVAÇÕES: ${parsed.observations}
-🐾 ALERTA PETS: ${parsed.pet_warning}`;
-
-          if (document.getElementById('specieCare')) {
-            document.getElementById('specieCare').value = fullCareDetails;
-          }
         } else {
           alert('Erro ao consultar IA: ' + (data.error || 'Falha na resposta'));
         }
       } catch (err) {
         alert("Erro ao processar dados da planta com a IA.");
       } finally {
-        btn.innerText = "✨ Gerar Ficha Completa de Cuidados com IA";
+        btn.innerText = "✨ Preencher Todos os Campos com IA";
         btn.disabled = false;
       }
     }
@@ -707,7 +776,16 @@
         emoji: "🪴",
         waterDays: document.getElementById('specieWaterDays').value,
         petSafety: document.getElementById('speciePetSafety').value,
-        care: document.getElementById('specieCare').value
+        category: document.getElementById('fieldCategory').value,
+        light: document.getElementById('fieldLight').value,
+        water: document.getElementById('fieldWater').value,
+        pruning: document.getElementById('fieldPruning').value,
+        humidity: document.getElementById('fieldHumidity').value,
+        soil: document.getElementById('fieldSoil').value,
+        fertilizer: document.getElementById('fieldFertilizer').value,
+        naturalFertilizer: document.getElementById('fieldNaturalFertilizer').value,
+        extraTips: document.getElementById('fieldExtraTips').value,
+        observations: document.getElementById('fieldObservations').value
       };
 
       speciesData.unshift(newSpecies);
