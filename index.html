@@ -1,3 +1,4 @@
+HTML
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -5,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Minhas Plantas 🌿</title>
   
-  <meta name="theme-color" content="#4a6741" />
+  <meta name="theme-color" content="#3a5335" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -46,7 +47,7 @@
       overflow-x: hidden;
     }
 
-    /* Layout Responsivo: PC vs Mobile */
+    /* Layout Responsivo */
     .app-layout {
       display: flex;
       flex: 1;
@@ -55,7 +56,7 @@
       margin: 0 auto;
     }
 
-    /* Sidebar - Visível no PC */
+    /* Sidebar Desktop */
     .sidebar {
       width: 280px;
       background: var(--moss);
@@ -106,7 +107,7 @@
       color: var(--white);
     }
 
-    /* Bottom Nav - Visível apenas no Mobile */
+    /* Bottom Nav Mobile */
     .bottom-nav {
       display: none;
       position: fixed;
@@ -138,7 +139,7 @@
       font-weight: 700;
     }
 
-    /* Main Content Area */
+    /* Main Area */
     .main-content {
       flex: 1;
       padding: 2rem;
@@ -203,11 +204,6 @@
       display: flex;
       flex-direction: column;
       gap: 1rem;
-      transition: transform 0.2s;
-    }
-
-    .species-card:hover {
-      transform: translateY(-3px);
     }
 
     .card-header {
@@ -265,63 +261,7 @@
       color: #2e7d32;
     }
 
-    /* Section Vasos Dentro da Planta */
-    .pots-section {
-      border-top: 1px solid var(--mist);
-      padding-top: 0.8rem;
-    }
-
-    .pots-title {
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--gold);
-      font-weight: 700;
-      margin-bottom: 0.6rem;
-    }
-
-    .pots-row {
-      display: flex;
-      gap: 0.75rem;
-      overflow-x: auto;
-      padding-bottom: 0.5rem;
-      scrollbar-width: thin;
-    }
-
-    .pot-item {
-      flex: 0 0 110px;
-      background: var(--cream);
-      border-radius: 12px;
-      padding: 0.6rem;
-      text-align: center;
-      cursor: pointer;
-      border: 1px solid transparent;
-      transition: all 0.2s;
-    }
-
-    .pot-item:hover {
-      border-color: var(--sage);
-      background: #f0ede4;
-    }
-
-    .pot-thumb {
-      width: 100%;
-      height: 65px;
-      object-fit: cover;
-      border-radius: 8px;
-      margin-bottom: 0.4rem;
-      background: var(--mist);
-    }
-
-    .pot-name {
-      font-size: 0.75rem;
-      font-weight: 600;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    /* Drawer / Modal Deslizante */
+    /* Modais / Drawers */
     .modal-overlay {
       position: fixed;
       inset: 0;
@@ -374,7 +314,6 @@
       color: var(--ink);
     }
 
-    /* Form Styles */
     .form-group {
       display: flex;
       flex-direction: column;
@@ -396,14 +335,8 @@
       font-family: inherit;
       font-size: 0.9rem;
       outline: none;
-      transition: border-color 0.2s;
     }
 
-    .form-control:focus {
-      border-color: var(--sage);
-    }
-
-    /* IA Auto Fill Button */
     .btn-ai-autofill {
       background: linear-gradient(135deg, #6b8e63 0%, #3a5335 100%);
       color: white;
@@ -419,64 +352,18 @@
       margin-top: 0.3rem;
     }
 
-    /* Galeria Timeline */
-    .timeline-gallery {
-      display: flex;
-      gap: 0.8rem;
-      overflow-x: auto;
-      padding: 0.5rem 0;
-    }
-
-    .timeline-item {
-      position: relative;
-      flex: 0 0 100px;
-    }
-
-    .timeline-img {
-      width: 100px;
-      height: 100px;
-      object-fit: cover;
-      border-radius: 10px;
-      border: 2px solid var(--mist);
-    }
-
-    .timeline-date {
-      position: absolute;
-      bottom: 4px;
-      left: 4px;
-      right: 4px;
-      background: rgba(0, 0, 0, 0.65);
-      color: white;
-      font-size: 0.58rem;
-      text-align: center;
-      padding: 2px;
-      border-radius: 4px;
-    }
-
-    /* Responsive Adjustments */
     @media (max-width: 768px) {
-      .sidebar {
-        display: none;
-      }
-      .bottom-nav {
-        display: flex;
-      }
-      .main-content {
-        padding: 1.25rem;
-        padding-bottom: 5.5rem;
-      }
-      .modal-overlay {
-        align-items: flex-end;
-      }
+      .sidebar { display: none; }
+      .bottom-nav { display: flex; }
+      .main-content { padding: 1.25rem; padding-bottom: 5.5rem; }
+      .modal-overlay { align-items: flex-end; }
       .drawer {
         max-width: 100%;
         height: 88vh;
         border-radius: 20px 20px 0 0;
         transform: translateY(100%);
       }
-      .modal-overlay.active .drawer {
-        transform: translateY(0);
-      }
+      .modal-overlay.active .drawer { transform: translateY(0); }
     }
   </style>
 </head>
@@ -490,7 +377,6 @@
       </div>
       <nav class="nav-links">
         <button class="nav-btn active" onclick="switchTab('plants')">🌱 Minhas Espécies</button>
-        <button class="nav-btn" onclick="switchTab('pots')">🪴 Todos os Vasos</button>
         <button class="nav-btn" onclick="switchTab('ai')">🤖 Diagnóstico IA</button>
       </nav>
     </aside>
@@ -501,36 +387,34 @@
         <div class="header-bar">
           <div class="header-title">
             <h2>Coleção de Plantas</h2>
-            <p id="envInfo">📍 Buscando clima & fase da lua...</p>
+            <p id="envInfo">🌙 Conectando ao servidor astronômico...</p>
           </div>
           <button class="btn-primary" onclick="openDrawer('drawerAddSpecies')">
             <span>+</span> Nova Planta
           </button>
         </div>
 
-        <div class="species-grid" id="speciesList">
-          </div>
+        <div class="species-grid" id="speciesList"></div>
       </section>
 
       <section id="sec-ai" style="display: none;">
         <div class="header-bar">
           <div class="header-title">
             <h2>Análise de Saúde com IA 🩺</h2>
-            <p>Tire uma foto para checar pragas, fungos, luz e fases da lua</p>
+            <p>Envie uma foto da sua folha ou vaso para um diagnóstico completo</p>
           </div>
         </div>
 
         <div style="background: white; padding: 1.5rem; border-radius: var(--radius); box-shadow: var(--shadow);">
           <div class="form-group">
-            <label>Foto da Folha / Planta</label>
-            <input type="file" id="aiImageInput" accept="image/*" capture="camera" class="form-control" />
+            <label>Foto da Planta</label>
+            <input type="file" id="aiImageInput" accept="image/*" class="form-control" />
           </div>
           <button class="btn-primary" style="width: 100%; justify-content: center;" onclick="runAIDiagnosis()">
             🔍 Analisar Saúde com IA
           </button>
 
-          <div id="aiResult" style="margin-top: 1.5rem; display: none; padding: 1rem; background: var(--cream); border-radius: 12px; line-height: 1.6;">
-            </div>
+          <div id="aiResult" style="margin-top: 1.5rem; display: none; padding: 1.2rem; background: var(--cream); border-radius: 12px; line-height: 1.6;"></div>
         </div>
       </section>
 
@@ -541,10 +425,6 @@
     <button class="nav-btn active" onclick="switchTab('plants')">
       <span style="font-size: 1.2rem;">🌱</span>
       Plantas
-    </button>
-    <button class="nav-btn" onclick="switchTab('pots')">
-      <span style="font-size: 1.2rem;">🪴</span>
-      Vasos
     </button>
     <button class="nav-btn" onclick="switchTab('ai')">
       <span style="font-size: 1.2rem;">🤖</span>
@@ -561,10 +441,10 @@
 
       <form id="formSpecies" onsubmit="saveSpecies(event)">
         <div class="form-group">
-          <label>Nome Popular / Espécie</label>
+          <label>Nome Popular</label>
           <input type="text" id="specieName" class="form-control" placeholder="Ex: Jiboia, Monstera..." required />
           <button type="button" class="btn-ai-autofill" onclick="autoFillWithAI()">
-            ✨ Preencher Dicas com IA
+            ✨ Preencher Cuidados com IA
           </button>
         </div>
 
@@ -600,10 +480,9 @@
   </div>
 
   <script>
-    // URL do Servidor Backend em Python (Substitua pela sua URL final do Render/Hugging Face)
-    const PYTHON_BACKEND_URL = "https://seu-backend-python.onrender.com";
+    // URL OFICIAL DA SUA API PYTHON NO RENDER
+    const PYTHON_BACKEND_URL = "https://minhas-plantas.onrender.com";
 
-    // Dados Mockados para Exemplo Inicial
     let speciesData = [
       {
         id: "1",
@@ -611,30 +490,14 @@
         scientific: "Epipremnum aureum",
         emoji: "🌿",
         waterDays: 5,
-        petSafety: "toxic",
-        pots: [
-          { id: "p1", name: "Vaso da Sala", photo: "https://images.unsplash.com/photo-1545241047-6083a3684587?w=300", lastDate: "2026-08-01" },
-          { id: "p2", name: "Vaso Quarto", photo: "https://images.unsplash.com/photo-1512428559087-560fa5ceab42?w=300", lastDate: "2026-07-28" }
-        ]
-      },
-      {
-        id: "2",
-        name: "Peperômia",
-        scientific: "Peperomia caperata",
-        emoji: "🪴",
-        waterDays: 7,
-        petSafety: "safe",
-        pots: [
-          { id: "p3", name: "Mesa de Trabalho", photo: "", lastDate: "2026-08-02" }
-        ]
+        petSafety: "toxic"
       }
     ];
 
     // ==========================================
-    // NAVEGAÇÃO & HISTORY API (Tratamento do Botão Voltar)
+    // HISTORY API (Tratamento do Botão Voltar)
     // ==========================================
-    window.addEventListener('popstate', (event) => {
-      // Se houver algum modal/drawer aberto, fecha ele sem fechar a página
+    window.addEventListener('popstate', () => {
       const activeOverlay = document.querySelector('.modal-overlay.active');
       if (activeOverlay) {
         activeOverlay.classList.remove('active');
@@ -645,7 +508,6 @@
       const drawer = document.getElementById(drawerId);
       if (drawer) {
         drawer.classList.add('active');
-        // Adiciona um estado ao histórico para capturar o botão 'Voltar' do celular
         history.pushState({ modalOpen: true }, '');
       }
     }
@@ -654,7 +516,6 @@
       const activeOverlay = document.querySelector('.modal-overlay.active');
       if (activeOverlay) {
         activeOverlay.classList.remove('active');
-        // Se voltou via clique no X, volta o histórico para manter sincronizado
         if (history.state && history.state.modalOpen) {
           history.back();
         }
@@ -670,7 +531,22 @@
     }
 
     // ==========================================
-    // RENDERIZAÇÃO DA UI
+    // CARREGAR DADOS DO SERVIDOR (LUA & CLIMA)
+    // ==========================================
+    async function loadMoonInfo() {
+      try {
+        const res = await fetch(`${PYTHON_BACKEND_URL}/`);
+        if(res.ok) {
+          const data = await res.json();
+          document.getElementById('envInfo').innerText = `🌙 Fase da Lua: ${data.moon_info.phase} | ${data.moon_info.gardening_tip}`;
+        }
+      } catch (err) {
+        document.getElementById('envInfo').innerText = `📍 Modo offline ou carregando...`;
+      }
+    }
+
+    // ==========================================
+    // RENDERIZAÇÃO
     // ==========================================
     function renderSpecies() {
       const container = document.getElementById('speciesList');
@@ -682,13 +558,6 @@
           : item.petSafety === 'safe'
           ? `<span class="pet-badge safe">✅ Segura para Pets</span>`
           : '';
-
-        const potsHtml = item.pots.map(pot => `
-          <div class="pot-item">
-            <img src="${pot.photo || 'https://via.placeholder.com/100?text=Vaso'}" class="pot-thumb" alt="${pot.name}" />
-            <div class="pot-name">${pot.name}</div>
-          </div>
-        `).join('');
 
         const card = document.createElement('div');
         card.className = 'species-card';
@@ -703,27 +572,20 @@
               </div>
             </div>
           </div>
-
-          <div class="pots-section">
-            <div class="pots-title">Vasos (${item.pots.length})</div>
-            <div class="pots-row">
-              ${potsHtml}
-            </div>
-          </div>
         `;
         container.appendChild(card);
       });
     }
 
     // ==========================================
-    // INTEGRAÇÃO COM IA (API PYTHON)
+    // CHAMADAS DE IA (GEMINI VIA PYTHON)
     // ==========================================
     async function autoFillWithAI() {
       const name = document.getElementById('specieName').value;
       if (!name) return alert('Digite o nome da planta primeiro!');
 
       const btn = document.querySelector('.btn-ai-autofill');
-      btn.innerText = "⏳ Consultando IA...";
+      btn.innerText = "⏳ Consultando Gemini...";
       btn.disabled = true;
 
       try {
@@ -739,14 +601,15 @@
           const data = await response.json();
           document.getElementById('specieScientific').value = data.scientific_name || '';
           document.getElementById('specieWaterDays').value = data.water_days || 5;
-          document.getElementById('specieCare').value = data.soil || '';
+          document.getElementById('specieCare').value = `${data.soil || ''}. Adubação: ${data.fertilizer || ''}`;
           document.getElementById('speciePetSafety').value = data.pet_toxic ? 'toxic' : 'safe';
+        } else {
+          alert('Certifique-se de configurar a GEMINI_API_KEY no Render.');
         }
       } catch (err) {
-        console.error("Erro ao chamar IA:", err);
-        alert("Erro de conexão com o servidor de IA.");
+        alert("Erro de comunicação com a API.");
       } finally {
-        btn.innerText = "✨ Preencher Dicas com IA";
+        btn.innerText = "✨ Preencher Cuidados com IA";
         btn.disabled = false;
       }
     }
@@ -756,17 +619,17 @@
       const resultDiv = document.getElementById('aiResult');
 
       if (!fileInput.files[0]) {
-        return alert("Por favor, selecione ou tire uma foto da planta!");
+        return alert("Por favor, selecione uma foto!");
       }
 
       resultDiv.style.display = 'block';
-      resultDiv.innerHTML = "⏳ <b>Analisando saúde, clima e fase da lua... Aguarde.</b>";
+      resultDiv.innerHTML = "⏳ <b>Analisando saúde, clima e fase da lua com o Gemini... Aguarde.</b>";
 
       try {
         const formData = new FormData();
         formData.append('file', fileInput.files[0]);
         formData.append('city', 'São José dos Pinhais');
-        formData.append('season', 'Inverno/Primavera');
+        formData.append('season', 'Atual');
 
         const response = await fetch(`${PYTHON_BACKEND_URL}/api/diagnose-plant`, {
           method: 'POST',
@@ -776,14 +639,15 @@
         if (response.ok) {
           const data = await response.json();
           resultDiv.innerHTML = `
-            <h4> Diagnóstico Completo:</h4>
-            <p><b>Fase Atual da Lua:</b> ${data.moon_phase}</p>
-            <hr style="margin:0.5rem 0; border:0; border-top:1px solid #ccc;">
+            <h4>🩺 Relatório de Saúde:</h4>
+            <p style="margin-top: 0.5rem;"><b>Fase da Lua:</b> ${data.moon_phase}</p>
+            <p><i>${data.moon_tip}</i></p>
+            <hr style="margin: 0.8rem 0; border: 0; border-top: 1px solid var(--mist);">
             <div style="white-space: pre-line;">${data.diagnosis}</div>
           `;
         }
       } catch (err) {
-        resultDiv.innerHTML = "❌ Não foi possível realizar o diagnóstico no momento.";
+        resultDiv.innerHTML = "❌ Não foi possível realizar a análise no momento.";
       }
     }
 
@@ -795,8 +659,7 @@
         scientific: document.getElementById('specieScientific').value,
         emoji: "🪴",
         waterDays: document.getElementById('specieWaterDays').value,
-        petSafety: document.getElementById('speciePetSafety').value,
-        pots: []
+        petSafety: document.getElementById('speciePetSafety').value
       };
 
       speciesData.unshift(newSpecies);
@@ -805,9 +668,9 @@
       document.getElementById('formSpecies').reset();
     }
 
-    // Inicialização
     document.addEventListener('DOMContentLoaded', () => {
       renderSpecies();
+      loadMoonInfo();
     });
   </script>
 </body>
