@@ -1,4 +1,3 @@
-HTML
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -47,7 +46,6 @@ HTML
       overflow-x: hidden;
     }
 
-    /* Layout Responsivo */
     .app-layout {
       display: flex;
       flex: 1;
@@ -56,7 +54,6 @@ HTML
       margin: 0 auto;
     }
 
-    /* Sidebar Desktop */
     .sidebar {
       width: 280px;
       background: var(--moss);
@@ -107,7 +104,6 @@ HTML
       color: var(--white);
     }
 
-    /* Bottom Nav Mobile */
     .bottom-nav {
       display: none;
       position: fixed;
@@ -139,7 +135,6 @@ HTML
       font-weight: 700;
     }
 
-    /* Main Area */
     .main-content {
       flex: 1;
       padding: 2rem;
@@ -188,7 +183,6 @@ HTML
       background: #b05f34;
     }
 
-    /* Grid de Plantas */
     .species-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -239,7 +233,6 @@ HTML
       font-style: italic;
     }
 
-    /* Pet Alert Badge */
     .pet-badge {
       display: inline-flex;
       align-items: center;
@@ -261,7 +254,6 @@ HTML
       color: #2e7d32;
     }
 
-    /* Modais / Drawers */
     .modal-overlay {
       position: fixed;
       inset: 0;
@@ -382,12 +374,11 @@ HTML
     </aside>
 
     <main class="main-content">
-      
       <section id="sec-plants">
         <div class="header-bar">
           <div class="header-title">
             <h2>Coleção de Plantas</h2>
-            <p id="envInfo">🌙 Conectando ao servidor astronômico...</p>
+            <p>☁️ Powered by Cloudflare Workers & Gemini</p>
           </div>
           <button class="btn-primary" onclick="openDrawer('drawerAddSpecies')">
             <span>+</span> Nova Planta
@@ -401,7 +392,7 @@ HTML
         <div class="header-bar">
           <div class="header-title">
             <h2>Análise de Saúde com IA 🩺</h2>
-            <p>Envie uma foto da sua folha ou vaso para um diagnóstico completo</p>
+            <p>Envie uma foto da sua planta para diagnóstico</p>
           </div>
         </div>
 
@@ -417,7 +408,6 @@ HTML
           <div id="aiResult" style="margin-top: 1.5rem; display: none; padding: 1.2rem; background: var(--cream); border-radius: 12px; line-height: 1.6;"></div>
         </div>
       </section>
-
     </main>
   </div>
 
@@ -480,8 +470,8 @@ HTML
   </div>
 
   <script>
-    // URL OFICIAL DA SUA API PYTHON NO RENDER
-    const PYTHON_BACKEND_URL = "https://minhas-plantas.onrender.com";
+    // URL do seu Cloudflare Worker
+    const WORKER_URL = "https://shiny-sky-21dd.genesisgns.workers.dev/";
 
     let speciesData = [
       {
@@ -494,9 +484,6 @@ HTML
       }
     ];
 
-    // ==========================================
-    // HISTORY API (Tratamento do Botão Voltar)
-    // ==========================================
     window.addEventListener('popstate', () => {
       const activeOverlay = document.querySelector('.modal-overlay.active');
       if (activeOverlay) {
@@ -530,24 +517,6 @@ HTML
       event.currentTarget.classList.add('active');
     }
 
-    // ==========================================
-    // CARREGAR DADOS DO SERVIDOR (LUA & CLIMA)
-    // ==========================================
-    async function loadMoonInfo() {
-      try {
-        const res = await fetch(`${PYTHON_BACKEND_URL}/`);
-        if(res.ok) {
-          const data = await res.json();
-          document.getElementById('envInfo').innerText = `🌙 Fase da Lua: ${data.moon_info.phase} | ${data.moon_info.gardening_tip}`;
-        }
-      } catch (err) {
-        document.getElementById('envInfo').innerText = `📍 Modo offline ou carregando...`;
-      }
-    }
-
-    // ==========================================
-    // RENDERIZAÇÃO
-    // ==========================================
     function renderSpecies() {
       const container = document.getElementById('speciesList');
       container.innerHTML = '';
@@ -577,9 +546,7 @@ HTML
       });
     }
 
-    // ==========================================
-    // CHAMADAS DE IA (GEMINI VIA PYTHON)
-    // ==========================================
+    // Preenchimento de Dicas via IA no Worker
     async function autoFillWithAI() {
       const name = document.getElementById('specieName').value;
       if (!name) return alert('Digite o nome da planta primeiro!');
@@ -588,32 +555,59 @@ HTML
       btn.innerText = "⏳ Consultando Gemini...";
       btn.disabled = true;
 
-      try {
-        const formData = new FormData();
-        formData.append('plant_name', name);
+      const prompt = `
+      Você é um botânico especialista. Forneça dados de cultivo sobre a planta '${name}'.
+      Responda EXCLUSIVAMENTE em formato JSON VÁLIDO sem markdown:
+      {
+          "scientific_name": "Nome científico exato",
+          "water_days": 5,
+          "soil": "Recomendação de solo e rega",
+          "pet_toxic": true
+      }
+      `;
 
-        const response = await fetch(`${PYTHON_BACKEND_URL}/api/auto-fill-plant`, {
+      try {
+        const response = await fetch(WORKER_URL, {
           method: 'POST',
-          body: formData
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: prompt })
         });
 
-        if (response.ok) {
-          const data = await response.json();
-          document.getElementById('specieScientific').value = data.scientific_name || '';
-          document.getElementById('specieWaterDays').value = data.water_days || 5;
-          document.getElementById('specieCare').value = `${data.soil || ''}. Adubação: ${data.fertilizer || ''}`;
-          document.getElementById('speciePetSafety').value = data.pet_toxic ? 'toxic' : 'safe';
+        const data = await response.json();
+
+        if (response.ok && data.resposta) {
+          const cleanedText = data.resposta.replace(/```json/g, '').replace(/```/g, '').trim();
+          const parsed = JSON.parse(cleanedText);
+
+          document.getElementById('specieScientific').value = parsed.scientific_name || '';
+          document.getElementById('specieWaterDays').value = parsed.water_days || 5;
+          document.getElementById('specieCare').value = parsed.soil || '';
+          document.getElementById('speciePetSafety').value = parsed.pet_toxic ? 'toxic' : 'safe';
         } else {
-          alert('Certifique-se de configurar a GEMINI_API_KEY no Render.');
+          alert('Erro: ' + (data.error || 'Falha na resposta'));
         }
       } catch (err) {
-        alert("Erro de comunicação com a API.");
+        alert("Erro de comunicação com o Cloudflare Worker.");
       } finally {
         btn.innerText = "✨ Preencher Cuidados com IA";
         btn.disabled = false;
       }
     }
 
+    // Helper para converter imagem para Base64
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+          const base64String = reader.result.split(',')[1];
+          resolve(base64String);
+        };
+        reader.onerror = error => reject(error);
+      });
+    }
+
+    // Diagnóstico por Foto via IA no Worker
     async function runAIDiagnosis() {
       const fileInput = document.getElementById('aiImageInput');
       const resultDiv = document.getElementById('aiResult');
@@ -622,29 +616,33 @@ HTML
         return alert("Por favor, selecione uma foto!");
       }
 
+      const file = fileInput.files[0];
       resultDiv.style.display = 'block';
-      resultDiv.innerHTML = "⏳ <b>Analisando saúde, clima e fase da lua com o Gemini... Aguarde.</b>";
+      resultDiv.innerHTML = "⏳ <b>Analisando a foto da planta via Cloudflare Worker... Aguarde.</b>";
 
       try {
-        const formData = new FormData();
-        formData.append('file', fileInput.files[0]);
-        formData.append('city', 'São José dos Pinhais');
-        formData.append('season', 'Atual');
+        const base64 = await fileToBase64(file);
+        const prompt = "Você é um agrônomo especialista em saúde foliar. Analise visualmente a foto desta planta, aponte problemas de rega, luz ou pragas e forneça um plano de cuidado em tópicos simples.";
 
-        const response = await fetch(`${PYTHON_BACKEND_URL}/api/diagnose-plant`, {
+        const response = await fetch(WORKER_URL, {
           method: 'POST',
-          body: formData
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: prompt,
+            imageBase64: base64,
+            mimeType: file.type
+          })
         });
 
-        if (response.ok) {
-          const data = await response.json();
+        const data = await response.json();
+
+        if (response.ok && data.resposta) {
           resultDiv.innerHTML = `
             <h4>🩺 Relatório de Saúde:</h4>
-            <p style="margin-top: 0.5rem;"><b>Fase da Lua:</b> ${data.moon_phase}</p>
-            <p><i>${data.moon_tip}</i></p>
-            <hr style="margin: 0.8rem 0; border: 0; border-top: 1px solid var(--mist);">
-            <div style="white-space: pre-line;">${data.diagnosis}</div>
+            <div style="white-space: pre-line; margin-top: 0.8rem;">${data.resposta}</div>
           `;
+        } else {
+          resultDiv.innerHTML = `❌ Erro na análise: ${data.error || 'Falha ao processar'}`;
         }
       } catch (err) {
         resultDiv.innerHTML = "❌ Não foi possível realizar a análise no momento.";
@@ -670,7 +668,6 @@ HTML
 
     document.addEventListener('DOMContentLoaded', () => {
       renderSpecies();
-      loadMoonInfo();
     });
   </script>
 </body>
