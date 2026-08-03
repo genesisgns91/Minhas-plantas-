@@ -198,6 +198,7 @@
       display: flex;
       flex-direction: column;
       gap: 1rem;
+      position: relative;
     }
 
     .card-header {
@@ -264,6 +265,20 @@
     .pet-badge.safe {
       background: #e8f5e9;
       color: #2e7d32;
+    }
+
+    .btn-delete-card {
+      background: transparent;
+      border: none;
+      color: #aaa;
+      font-size: 1.2rem;
+      cursor: pointer;
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+    }
+    .btn-delete-card:hover {
+      color: var(--red-alert);
     }
 
     .modal-overlay {
@@ -401,14 +416,16 @@
         <div class="header-bar">
           <div class="header-title">
             <h2>Coleção de Plantas</h2>
-            <p>☁️ Powered by Cloudflare Workers & Gemini IA</p>
+            <p>🔥 Conectado ao Firebase Firestore</p>
           </div>
           <button class="btn-primary" onclick="openDrawer('drawerAddSpecies')">
             <span>+</span> Nova Planta
           </button>
         </div>
 
-        <div class="species-grid" id="speciesList"></div>
+        <div class="species-grid" id="speciesList">
+          <p style="color: #666; font-size: 0.9rem;">Carregando plantas do Firebase...</p>
+        </div>
       </section>
 
       <section id="sec-ai" style="display: none;">
@@ -474,7 +491,7 @@
         </div>
 
         <div class="form-group">
-          <label>Luz & Sol Directo</label>
+          <label>Luz & Sol Direto</label>
           <input type="text" id="fieldLight" class="form-control" placeholder="Ex: Luz Indireta Filtrada. Não tolera sol direto" />
         </div>
 
@@ -532,95 +549,70 @@
           </select>
         </div>
 
-        <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 1rem;">
-          Salvar Planta
+        <button type="submit" id="btnSave" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 1rem;">
+          Salvar Planta no Firebase
         </button>
       </form>
     </div>
   </div>
 
-  <script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    // INSIRA AS CONFIGURAÇÕES DO SEU PROJETO FIREBASE AQUI
+    const firebaseConfig = {
+      apiKey: "SEU_API_KEY",
+      authDomain: "SEU_PROJECT.firebaseapp.com",
+      projectId: "SEU_PROJECT_ID",
+      storageBucket: "SEU_PROJECT.appspot.com",
+      messagingSenderId: "SEU_SENDER_ID",
+      appId: "SEU_APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const speciesCol = collection(db, "species");
+
     const WORKER_URL = "https://shiny-sky-21dd.genesisgns.workers.dev/";
+    let speciesList = [];
 
-    let speciesData = [
-      {
-        id: "1",
-        name: "Jiboia",
-        scientific: "Epipremnum aureum",
-        emoji: "🌿",
-        waterDays: 5,
-        petSafety: "toxic",
-        category: "Trepadeira / Ornamental folhosa",
-        light: "Luz Indireta Filtrada (4-6h/dia). Não tolera sol direto",
-        water: "Moderada (a cada 5 dias)",
-        pruning: "Regular para conter crescimento",
-        humidity: "Ama alta umidade. Borrifar folhas",
-        soil: "Substrato orgânico e drenável",
-        fertilizer: "NPK 10-10-10 mensal",
-        naturalFertilizer: "Chá de casca de banana e borra de café curtida",
-        extraTips: "Limpe as folhas com pano úmido para melhorar a fotossíntese.",
-        observations: "Evite solo encharcado para não apodrecer as raízes."
-      }
-    ];
-
-    window.addEventListener('popstate', () => {
-      const activeOverlay = document.querySelector('.modal-overlay.active');
-      if (activeOverlay) {
-        activeOverlay.classList.remove('active');
-      }
+    // OUVIR ALTERAÇÕES EM TEMPO REAL NO FIREBASE
+    onSnapshot(speciesCol, (snapshot) => {
+      speciesList = snapshot.docs.map(docSnap => ({
+        firestoreId: docSnap.id,
+        ...docSnap.data()
+      }));
+      renderSpecies();
+    }, (error) => {
+      console.error("Erro ao carregar dados do Firebase:", error);
+      document.getElementById('speciesList').innerHTML = `<p style="color:red;">Erro ao conectar com Firebase. Verifique a chave da API.</p>`;
     });
-
-    function openDrawer(drawerId) {
-      const drawer = document.getElementById(drawerId);
-      if (drawer) {
-        drawer.classList.add('active');
-        history.pushState({ modalOpen: true }, '');
-      }
-    }
-
-    function closeActiveDrawer() {
-      const activeOverlay = document.querySelector('.modal-overlay.active');
-      if (activeOverlay) {
-        activeOverlay.classList.remove('active');
-        if (history.state && history.state.modalOpen) {
-          history.back();
-        }
-      }
-    }
-
-    function switchTab(tab) {
-      document.getElementById('sec-plants').style.display = tab === 'plants' ? 'block' : 'none';
-      document.getElementById('sec-ai').style.display = tab === 'ai' ? 'block' : 'none';
-      
-      document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-      event.currentTarget.classList.add('active');
-    }
 
     function renderSpecies() {
       const container = document.getElementById('speciesList');
       container.innerHTML = '';
 
-      speciesData.forEach(item => {
+      if (speciesList.length === 0) {
+        container.innerHTML = '<p style="color:#666;">Nenhuma planta cadastrada ainda.</p>';
+        return;
+      }
+
+      speciesList.forEach(item => {
         const petTag = item.petSafety === 'toxic' 
           ? `<span class="pet-badge toxic">⚠️ Tóxica para Pets</span>`
           : item.petSafety === 'safe'
           ? `<span class="pet-badge safe">✅ Segura para Pets</span>`
           : '';
 
-        const card = document.createElement('div');
-        card.className = 'species-card';
-        card.innerHTML = `
-          <div class="card-header">
-            <div class="species-info">
-              <span class="species-emoji">${item.emoji || '🌿'}</span>
-              <div>
-                <div class="species-title">${item.name}</div>
-                <div class="species-subtitle">${item.scientific || ''}</div>
-                ${petTag}
-              </div>
-            </div>
-          </div>
-          <div class="species-care-text">
+        let careContent = '';
+        
+        // Se for um registro antigo (tem a propriedade 'care' inteira)
+        if (item.care && !item.category) {
+          careContent = item.care;
+        } else {
+          // Se for formato novo
+          careContent = `
 ${item.category ? `🏷️ <b>CATEGORIA:</b> ${item.category}\n` : ''}
 ${item.light ? `☀️ <b>LUZ & SOL:</b> ${item.light}\n` : ''}
 ${item.water ? `💧 <b>REGA:</b> ${item.water}\n` : ''}
@@ -631,13 +623,80 @@ ${item.fertilizer ? `🧪 <b>ADUBAÇÃO COMERCIAL:</b> ${item.fertilizer}\n` : '
 ${item.naturalFertilizer ? `🍌 <b>ADUBAÇÃO NATURAL:</b> ${item.naturalFertilizer}\n` : ''}
 ${item.extraTips ? `✨ <b>DICA EXTRA:</b> ${item.extraTips}\n` : ''}
 ${item.observations ? `⚠️ <b>OBSERVAÇÕES:</b> ${item.observations}` : ''}
+          `.trim();
+        }
+
+        const card = document.createElement('div');
+        card.className = 'species-card';
+        card.innerHTML = `
+          <button class="btn-delete-card" onclick="deleteSpecies('${item.firestoreId}')" title="Excluir">&times;</button>
+          <div class="card-header">
+            <div class="species-info">
+              <span class="species-emoji">${item.emoji || '🌿'}</span>
+              <div>
+                <div class="species-title">${item.name}</div>
+                <div class="species-subtitle">${item.scientific || item.scientific_name || ''}</div>
+                ${petTag}
+              </div>
+            </div>
           </div>
+          <div class="species-care-text">${careContent}</div>
         `;
         container.appendChild(card);
       });
     }
 
-    async function autoFillWithAI() {
+    // SALVAR NO FIREBASE
+    window.saveSpecies = async function(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnSave');
+      btn.disabled = true;
+      btn.innerText = "Salvando...";
+
+      const newDocData = {
+        name: document.getElementById('specieName').value,
+        scientific: document.getElementById('specieScientific').value,
+        emoji: "🪴",
+        waterDays: Number(document.getElementById('specieWaterDays').value) || 5,
+        petSafety: document.getElementById('speciePetSafety').value,
+        category: document.getElementById('fieldCategory').value,
+        light: document.getElementById('fieldLight').value,
+        water: document.getElementById('fieldWater').value,
+        pruning: document.getElementById('fieldPruning').value,
+        humidity: document.getElementById('fieldHumidity').value,
+        soil: document.getElementById('fieldSoil').value,
+        fertilizer: document.getElementById('fieldFertilizer').value,
+        naturalFertilizer: document.getElementById('fieldNaturalFertilizer').value,
+        extraTips: document.getElementById('fieldExtraTips').value,
+        observations: document.getElementById('fieldObservations').value,
+        updatedAt: new Date().toISOString()
+      };
+
+      try {
+        await addDoc(speciesCol, newDocData);
+        window.closeActiveDrawer();
+        document.getElementById('formSpecies').reset();
+      } catch (error) {
+        alert("Erro ao salvar no Firebase: " + error.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Salvar Planta no Firebase";
+      }
+    };
+
+    // EXCLUIR DO FIREBASE
+    window.deleteSpecies = async function(firestoreId) {
+      if (confirm("Tem certeza que deseja excluir esta planta do Firebase?")) {
+        try {
+          await deleteDoc(doc(db, "species", firestoreId));
+        } catch (error) {
+          alert("Erro ao excluir: " + error.message);
+        }
+      }
+    };
+
+    // PREENCHIMENTO COM IA
+    window.autoFillWithAI = async function() {
       const name = document.getElementById('specieName').value;
       if (!name) return alert('Digite o nome da planta primeiro!');
 
@@ -679,7 +738,6 @@ ${item.observations ? `⚠️ <b>OBSERVAÇÕES:</b> ${item.observations}` : ''}
           const cleanedText = data.resposta.replace(/```json/g, '').replace(/```/g, '').trim();
           const parsed = JSON.parse(cleanedText);
 
-          // Preenche CADA CAMPO DO FORMULÁRIO INDIVIDUALMENTE
           document.getElementById('specieScientific').value = parsed.scientific_name || '';
           document.getElementById('fieldCategory').value = parsed.category || '';
           document.getElementById('fieldLight').value = parsed.light || '';
@@ -693,31 +751,19 @@ ${item.observations ? `⚠️ <b>OBSERVAÇÕES:</b> ${item.observations}` : ''}
           document.getElementById('fieldExtraTips').value = parsed.extra_tips || '';
           document.getElementById('fieldObservations').value = parsed.observations || '';
           document.getElementById('speciePetSafety').value = parsed.pet_toxic ? 'toxic' : 'safe';
-
         } else {
           alert('Erro ao consultar IA: ' + (data.error || 'Falha na resposta'));
         }
       } catch (err) {
-        alert("Erro ao processar dados da planta com a IA.");
+        alert("Erro ao processar dados com a IA.");
       } finally {
         btn.innerText = "✨ Preencher Todos os Campos com IA";
         btn.disabled = false;
       }
-    }
+    };
 
-    function fileToBase64(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => {
-          const base64String = reader.result.split(',')[1];
-          resolve(base64String);
-        };
-        reader.onerror = error => reject(error);
-      });
-    }
-
-    async function runAIDiagnosis() {
+    // DIAGNÓSTICO IA
+    window.runAIDiagnosis = async function() {
       const fileInput = document.getElementById('aiImageInput');
       const resultDiv = document.getElementById('aiResult');
 
@@ -730,72 +776,79 @@ ${item.observations ? `⚠️ <b>OBSERVAÇÕES:</b> ${item.observations}` : ''}
       resultDiv.innerHTML = "⏳ <b>Analisando detalhes botânicos e saúde da foto... Aguarde.</b>";
 
       try {
-        const base64 = await fileToBase64(file);
-        const prompt = `
-        Você é um agrônomo e fitopatologista. Faça um diagnóstico completo da planta contida nesta imagem.
-        Forneça o relatório formatado nos seguintes tópicos claros:
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = async () => {
+          const base64 = reader.result.split(',')[1];
+          const prompt = `
+          Você é um agrônomo e fitopatologista. Faça um diagnóstico completo da planta contida nesta imagem.
+          Forneça o relatório formatado nos seguintes tópicos claros:
 
-        1. **Identificação Provável**: Nome popular e científico da planta.
-        2. **Análise de Saúde Visual**: Estado das folhas, caule e sinais de fungos, pragas (cochonilha, ácaro, pulgão) ou queimaduras.
-        3. **Diagnóstico de Irrigação e Luz**: Indícios de excesso/falta de água ou falta/excesso de sol.
-        4. **Plano de Ação e Tratamento**: O que fazer imediatamente (podas de limpeza, troca de vaso, produtos de controle ou receitas caseiras como calda de sabão/óleo de neem).
-        5. **Recomendações de Adubação Natural e Cuidados**: Dicas específicas de rega, sol direto na folha e adubação para recuperar a planta.
-        `;
-
-        const response = await fetch(WORKER_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt: prompt,
-            imageBase64: base64,
-            mimeType: file.type
-          })
-        });
-
-        const data = await response.json();
-
-        if (response.ok && data.resposta) {
-          resultDiv.innerHTML = `
-            <h4>🩺 Relatório Agronômico Completo:</h4>
-            <div style="white-space: pre-line; margin-top: 0.8rem; line-height: 1.6;">${data.resposta}</div>
+          1. **Identificação Provável**: Nome popular e científico da planta.
+          2. **Análise de Saúde Visual**: Estado das folhas, caule e sinais de fungos, pragas (cochonilha, ácaro, pulgão) ou queimaduras.
+          3. **Diagnóstico de Irrigação e Luz**: Indícios de excesso/falta de água ou falta/excesso de sol.
+          4. **Plano de Ação e Tratamento**: O que fazer imediatamente.
+          5. **Recomendações de Adubação Natural e Cuidados**: Dicas específicas de cultivo.
           `;
-        } else {
-          resultDiv.innerHTML = `❌ Erro na análise: ${data.error || 'Falha ao processar'}`;
-        }
+
+          const response = await fetch(WORKER_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              prompt: prompt,
+              imageBase64: base64,
+              mimeType: file.type
+            })
+          });
+
+          const data = await response.json();
+
+          if (response.ok && data.resposta) {
+            resultDiv.innerHTML = `
+              <h4>🩺 Relatório Agronômico Completo:</h4>
+              <div style="white-space: pre-line; margin-top: 0.8rem; line-height: 1.6;">${data.resposta}</div>
+            `;
+          } else {
+            resultDiv.innerHTML = `❌ Erro na análise: ${data.error || 'Falha ao processar'}`;
+          }
+        };
       } catch (err) {
         resultDiv.innerHTML = "❌ Não foi possível realizar a análise no momento.";
       }
-    }
+    };
 
-    function saveSpecies(e) {
-      e.preventDefault();
-      const newSpecies = {
-        id: Date.now().toString(),
-        name: document.getElementById('specieName').value,
-        scientific: document.getElementById('specieScientific').value,
-        emoji: "🪴",
-        waterDays: document.getElementById('specieWaterDays').value,
-        petSafety: document.getElementById('speciePetSafety').value,
-        category: document.getElementById('fieldCategory').value,
-        light: document.getElementById('fieldLight').value,
-        water: document.getElementById('fieldWater').value,
-        pruning: document.getElementById('fieldPruning').value,
-        humidity: document.getElementById('fieldHumidity').value,
-        soil: document.getElementById('fieldSoil').value,
-        fertilizer: document.getElementById('fieldFertilizer').value,
-        naturalFertilizer: document.getElementById('fieldNaturalFertilizer').value,
-        extraTips: document.getElementById('fieldExtraTips').value,
-        observations: document.getElementById('fieldObservations').value
-      };
+    // NAVEGAÇÃO / DRAWERS
+    window.openDrawer = function(drawerId) {
+      const drawer = document.getElementById(drawerId);
+      if (drawer) {
+        drawer.classList.add('active');
+        history.pushState({ modalOpen: true }, '');
+      }
+    };
 
-      speciesData.unshift(newSpecies);
-      renderSpecies();
-      closeActiveDrawer();
-      document.getElementById('formSpecies').reset();
-    }
+    window.closeActiveDrawer = function() {
+      const activeOverlay = document.querySelector('.modal-overlay.active');
+      if (activeOverlay) {
+        activeOverlay.classList.remove('active');
+        if (history.state && history.state.modalOpen) {
+          history.back();
+        }
+      }
+    };
 
-    document.addEventListener('DOMContentLoaded', () => {
-      renderSpecies();
+    window.switchTab = function(tab) {
+      document.getElementById('sec-plants').style.display = tab === 'plants' ? 'block' : 'none';
+      document.getElementById('sec-ai').style.display = tab === 'ai' ? 'block' : 'none';
+      
+      document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+      event.currentTarget.classList.add('active');
+    };
+
+    window.addEventListener('popstate', () => {
+      const activeOverlay = document.querySelector('.modal-overlay.active');
+      if (activeOverlay) {
+        activeOverlay.classList.remove('active');
+      }
     });
   </script>
 </body>
