@@ -6,6 +6,11 @@
   <title>Minhas Plantas & Vasos 🌿</title>
   
   <meta name="theme-color" content="#3a5335" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Minhas Plantas" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
@@ -61,8 +66,14 @@
 
     /* GRIDS & CARDS */
     .species-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
-    .species-card { background: var(--white); border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow); cursor: pointer; transition: transform 0.2s; position: relative; border: 1px solid rgba(0,0,0,0.04); }
+    .species-card { background: var(--white); border-radius: var(--radius); padding: 0; box-shadow: var(--shadow); cursor: pointer; transition: transform 0.2s; position: relative; border: 1px solid rgba(0,0,0,0.04); overflow: hidden; }
     .species-card:hover { transform: translateY(-4px); }
+    .species-card-cover { width: 100%; height: 190px; object-fit: cover; display: block; background: var(--mist); }
+    .species-card-cover-icon { width: 100%; height: 190px; display: flex; align-items: center; justify-content: center; font-size: 3.8rem; background: var(--cream); }
+    .species-card-body { padding: 1.1rem 1.4rem 1.4rem; }
+    .species-card-actions { position: absolute; top: 0.7rem; right: 0.7rem; display: flex; gap: 0.3rem; z-index: 2; }
+    .species-card-actions .btn-icon { background: rgba(255,255,255,0.9); border-radius: 50%; width: 1.7rem; height: 1.7rem; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
+    .species-card-actions .btn-icon.edit-icon { font-size: 0.7rem; width: 1.5rem; height: 1.5rem; }
 
     .vases-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.2rem; margin-top: 1rem; }
     .vase-card { background: var(--white); border-radius: 12px; padding: 1.2rem; border: 1px solid var(--mist); display: flex; flex-direction: column; gap: 0.8rem; box-shadow: var(--shadow); }
@@ -74,6 +85,7 @@
     .care-badge-label { font-size: 0.65rem; font-weight: 700; color: var(--sage); text-transform: uppercase; letter-spacing: 0.03em; display: flex; align-items: center; gap: 0.3rem; }
     .care-badge-icon { font-size: 0.95rem; }
     .care-badge-val { font-size: 0.78rem; color: var(--ink); font-weight: 500; word-break: break-word; }
+    .care-badge-wide { grid-column: span 2; }
 
     /* COVER / ÍCONE DE ESPÉCIE E VASO */
     .cover-icon { font-size: 2rem; background: var(--cream); padding: 0.4rem; border-radius: 10px; width: 3rem; height: 3rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -177,6 +189,9 @@
         <div class="search-box-wrap">
           <span>🔍</span>
           <input type="text" id="searchInput" placeholder="Buscar por vaso, espécie, categoria, luz, rega, poda, solo, adubação..." oninput="applySpeciesSearch()" />
+          <button class="btn-icon" style="white-space:nowrap; font-size:0.78rem; border:1px solid var(--mist); border-radius:8px; padding:0.4rem 0.7rem; color:var(--sage);" onclick="waterAllFiltered()" title="Regar todos os vasos filtrados">
+            💧 Regar Todos
+          </button>
         </div>
 
         <div class="reminders-section">
@@ -281,8 +296,8 @@
         </div>
 
         <div class="form-group">
-          <label>Nome Científico</label>
-          <input type="text" id="specieScientific" class="form-control" placeholder="Epipremnum aureum" />
+          <label>Outros Nomes Comuns</label>
+          <input type="text" id="specieScientific" class="form-control" placeholder="Ex: Jiboia-verde, Escada-de-macaco" />
         </div>
 
         <div class="form-group">
@@ -535,6 +550,14 @@
     </div>
   </div>
 
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(err => console.warn('Falha ao registrar service worker:', err));
+      });
+    }
+  </script>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
     import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
@@ -724,21 +747,21 @@
         card.onclick = () => openSpeciesDetail(sp);
 
         const coverHtml = sp.photo
-          ? `<img src="${sp.photo}" class="cover-photo-thumb" />`
-          : `<div class="cover-icon">${sp.icon || '🪴'}</div>`;
+          ? `<img src="${sp.photo}" class="species-card-cover" />`
+          : `<div class="species-card-cover-icon">${sp.icon || '🪴'}</div>`;
 
         card.innerHTML = `
-          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-            ${coverHtml}
-            <div style="display:flex; gap:0.2rem;">
-              <button class="btn-icon" onclick="event.stopPropagation(); editSpecies('${sp.firestoreId}')" title="Editar">✏️</button>
-              <button class="btn-icon" onclick="event.stopPropagation(); deleteSpecies('${sp.firestoreId}')" title="Excluir">&times;</button>
-            </div>
+          <div class="species-card-actions">
+            <button class="btn-icon edit-icon" onclick="event.stopPropagation(); editSpecies('${sp.firestoreId}')" title="Editar">✏️</button>
+            <button class="btn-icon" onclick="event.stopPropagation(); deleteSpecies('${sp.firestoreId}')" title="Excluir">&times;</button>
           </div>
-          <h3 style="font-family:'Playfair Display', serif; margin-top:0.6rem; color:var(--ink);">${sp.name}</h3>
-          <p style="font-size:0.8rem; font-style:italic; color:var(--sage);">${sp.scientific || ''}</p>
-          <div style="margin-top:1rem; font-size:0.85rem; font-weight:700; color:var(--terra);">
-            🪴 ${countVases} ${countVases === 1 ? 'Vaso cadastrado' : 'Vasos cadastrados'}
+          ${coverHtml}
+          <div class="species-card-body">
+            <h3 style="font-family:'Playfair Display', serif; color:var(--ink);">${sp.name}</h3>
+            <p style="font-size:0.8rem; color:var(--sage);">${sp.scientific || ''}</p>
+            <div style="margin-top:1rem; font-size:0.85rem; font-weight:700; color:var(--terra);">
+              🪴 ${countVases} ${countVases === 1 ? 'Vaso cadastrado' : 'Vasos cadastrados'}
+            </div>
           </div>
         `;
         container.appendChild(card);
@@ -777,14 +800,15 @@
         { icon: "🪱", label: "Solo", val: species.soil },
         { icon: "🧪", label: "Adubação Comercial", val: species.fertilizer },
         { icon: "🍌", label: "Adubação Natural", val: species.naturalFertilizer },
-        { icon: "💡", label: "Dica Extra", val: species.extraTips },
-        { icon: "⚠️", label: "Observações", val: species.observations },
+        { icon: "💡", label: "Dica Extra", val: species.extraTips, wide: true },
+        { icon: "⚠️", label: "Observações", val: species.observations, wide: true },
         {
           icon: petToxicityIcon(species.petToxicity),
           label: "Toxicidade Pet",
           val: species.petToxicity
             ? (species.petWarning ? `${species.petToxicity} — ${species.petWarning}` : species.petToxicity)
-            : null
+            : null,
+          wide: true
         }
       ];
 
@@ -793,7 +817,7 @@
         if (f.val) {
           countBadges++;
           careGrid.innerHTML += `
-            <div class="care-badge-item">
+            <div class="care-badge-item${f.wide ? ' care-badge-wide' : ''}">
               <span class="care-badge-label"><span class="care-badge-icon">${f.icon}</span>${f.label}</span>
               <span class="care-badge-val">${f.val}</span>
             </div>`;
@@ -936,6 +960,30 @@
         });
       } catch (err) {
         alert("Erro ao registrar ação: " + err.message);
+      }
+    };
+
+    // REGAR TODOS OS VASOS DAS ESPÉCIES ATUALMENTE FILTRADAS/VISÍVEIS NA BUSCA
+    window.waterAllFiltered = async function() {
+      const filteredSpecies = allSpecies.filter(speciesMatchesSearch);
+      const speciesIds = new Set(filteredSpecies.map(s => s.firestoreId));
+      const vasesToWater = allVases.filter(v => speciesIds.has(v.speciesId));
+
+      if (vasesToWater.length === 0) {
+        alert('Nenhum vaso encontrado para regar.');
+        return;
+      }
+
+      if (!confirm(`Regar ${vasesToWater.length} vaso(s) agora?`)) return;
+
+      const now = new Date().toISOString();
+      try {
+        await Promise.all(vasesToWater.map(v => updateDoc(doc(db, "vases", v.firestoreId), {
+          lastWater: now,
+          history: arrayUnion({ type: 'lastWater', date: now, notes: 'Rega em lote (Regar Todos)' })
+        })));
+      } catch (err) {
+        alert('Erro ao regar vasos: ' + err.message);
       }
     };
 
