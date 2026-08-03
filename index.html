@@ -81,6 +81,13 @@
     .cover-icon-lg { font-size: 2.2rem; background: var(--cream); border-radius: 12px; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .cover-photo-lg { width: 60px; height: 60px; border-radius: 12px; object-fit: cover; flex-shrink: 0; }
     .photo-preview { width: 100%; max-height: 160px; object-fit: cover; border-radius: 10px; margin-top: 0.5rem; display: none; }
+    .photo-picker-row { display: flex; gap: 0.5rem; margin-top: 0.4rem; }
+    .photo-picker-btn { flex: 1; text-align: center; cursor: pointer; }
+
+    /* CAIXA DE PESQUISA */
+    .search-box-wrap { background: var(--white); padding: 0.9rem 1.1rem; border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.6rem; }
+    .search-box-wrap span { font-size: 1.1rem; }
+    .search-box-wrap input { border: none; outline: none; font-family: inherit; font-size: 0.9rem; width: 100%; background: transparent; }
 
     /* TIMELINE DE CUIDADOS CRONOLÓGICA */
     .timeline { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.6rem; max-height: 220px; overflow-y: auto; }
@@ -167,6 +174,11 @@
           </div>
         </div>
 
+        <div class="search-box-wrap">
+          <span>🔍</span>
+          <input type="text" id="searchInput" placeholder="Buscar por vaso, espécie, categoria, luz, rega, poda, solo, adubação..." oninput="applySpeciesSearch()" />
+        </div>
+
         <div class="reminders-section">
           <div class="reminders-header">
             <span>⏰</span> Lembretes Agendados & Tarefas Próximas
@@ -220,8 +232,17 @@
         <div style="background: white; padding: 1.5rem; border-radius: var(--radius); box-shadow: var(--shadow);">
           <div class="form-group">
             <label>Foto da Planta</label>
-            <input type="file" id="aiImageInput" accept="image/*" class="form-control" />
-            <small style="color:var(--sage); font-size:0.72rem;">No celular, você pode tirar a foto na hora ou escolher da galeria.</small>
+            <img id="aiImagePreview" class="photo-preview" />
+            <div class="photo-picker-row">
+              <label class="btn-secondary photo-picker-btn">
+                📁 Galeria
+                <input type="file" id="aiImageGallery" accept="image/*" style="display:none;" />
+              </label>
+              <label class="btn-primary photo-picker-btn" style="justify-content:center;">
+                📷 Tirar Foto
+                <input type="file" id="aiImageCamera" accept="image/*" capture="environment" style="display:none;" />
+              </label>
+            </div>
           </div>
           <button class="btn-primary" style="width: 100%; justify-content: center;" onclick="runAIDiagnosis()">
             🔍 Analisar com IA
@@ -267,41 +288,14 @@
         <div class="form-group">
           <label>Ícone da Espécie</label>
           <select id="specieIcon" class="form-control">
-<option value="🪴">🪴 Vaso</option>
-<option value="🌱">🌱 Broto</option>
-<option value="🌿">🌿 Folhagem</option>
-<option value="🍃">🍃 Folhas ao vento</option>
-<option value="☘️">☘️ Trevo simples</option>
-<option value="🍀">🍀 Trevo de quatro folhas</option>
-<option value="🌾">🌾 Espiga / Trigo / Cereais</option>
-<option value="🎋">🎋 Árvore de bambu</option>
-<option value="🌵">🌵 Cacto / Suculenta</option>
-<option value="🌴">🌴 Palmeira / Coqueiro</option>
-<option value="🌸">🌸 Flor de cerejeira</option>
-<option value="🍂">🍂 Folha seca</option>
-<option value="🌺">🌺 Hibisco / Flor tropical</option>
-<option value="🌻">🌻 Girassol</option>
-<option value="🌹">🌹 Rosa</option>
-<option value="🥀">🥀 Flor murcha</option>
-<option value="🌷">🌷 Tulipa</option>
-<option value="🌼">🌼 Margarida / Flor amarela</option>
-<option value="🪻">🪻 Lavanda / Jacinto</option>
-<option value="🪷">🪷 Flor de Lótus</option>
-<option value="💐">💐 Buquê de flores</option>
-<option value="🌲">🌲 Pinheiro / Árvore perene</option>
-<option value="🌳">🌳 Árvore folhosa / Decídua</option>
-<option value="🪵">🪵 Madeira / Tronco / Lenha</option>
-<option value="🍄">🍄 Cogumelo / Fungo</option>
-<option value="🍇">🍇 Uvas</option>
-<option value="🍎">🍎 Maçã</option>
-<option value="🍋">🍋 Limão</option>
-<option value="🍒">🍒 Cereja</option>
-<option value="🍓">🍓 Morango</option>
-<option value="🥑">🥑 Abacate</option>
-<option value="🌽">🌽 Milho</option>
-<option value="🌶️">🌶️ Pimenta</option>
-<option value="🫒">🫒 Azeitona / Oliveira</option>
-<option value="🌰">🌰 Castanha / Semente</option>
+            <option value="🪴">🪴 Vaso</option>
+            <option value="🌱">🌱 Broto</option>
+            <option value="🌿">🌿 Folhagem</option>
+            <option value="🌵">🌵 Suculenta / Cacto</option>
+            <option value="🌴">🌴 Palmeira</option>
+            <option value="🍀">🍀 Trevo</option>
+            <option value="🌸">🌸 Flor</option>
+            <option value="🍂">🍂 Folha Seca</option>
           </select>
           <small style="color:var(--sage); font-size:0.72rem;">Usado quando não houver foto de capa.</small>
         </div>
@@ -309,8 +303,16 @@
         <div class="form-group">
           <label>Foto de Capa (Opcional)</label>
           <img id="speciePhotoPreview" class="photo-preview" />
-          <input type="file" id="speciePhotoInput" accept="image/*" class="form-control" />
-          <small style="color:var(--sage); font-size:0.72rem;">No celular, você pode tirar a foto na hora ou escolher da galeria.</small>
+          <div class="photo-picker-row">
+            <label class="btn-secondary photo-picker-btn">
+              📁 Galeria
+              <input type="file" id="speciePhotoGallery" accept="image/*" style="display:none;" />
+            </label>
+            <label class="btn-primary photo-picker-btn" style="justify-content:center;">
+              📷 Tirar Foto
+              <input type="file" id="speciePhotoCamera" accept="image/*" capture="environment" style="display:none;" />
+            </label>
+          </div>
         </div>
 
         <div class="form-section-title">📋 FICHA TÉCNICA DE CUIDADOS (CAMPOS INDIVIDUAIS)</div>
@@ -371,6 +373,21 @@
           <textarea id="fieldObservations" class="form-control" rows="2" placeholder="Ex: Evitar solo encharcado"></textarea>
         </div>
 
+        <div class="form-group">
+          <label>Toxicidade para Pets</label>
+          <select id="fieldPetToxicity" class="form-control">
+            <option value="">Não informado</option>
+            <option value="Segura">🟢 Segura</option>
+            <option value="Tóxica">🟠 Tóxica (causa desconforto, sem risco de vida)</option>
+            <option value="Letal">🔴 Letal (risco de vida ao pet)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Detalhes sobre a Toxicidade (Opcional)</label>
+          <textarea id="fieldPetWarning" class="form-control" rows="2" placeholder="Ex: Causa irritação na boca e vômitos se ingerida"></textarea>
+        </div>
+
         <button type="submit" id="btnSaveSpecies" class="btn-primary" style="width: 100%; justify-content: center; margin-top:1rem;">
           Salvar Espécie
         </button>
@@ -411,8 +428,16 @@
         <div class="form-group">
           <label>Foto do Vaso</label>
           <img id="vasePhotoPreview" class="photo-preview" />
-          <input type="file" id="vasePhotoInput" accept="image/*" class="form-control" />
-          <small style="color:var(--sage); font-size:0.72rem;">No celular, você pode tirar a foto na hora ou escolher da galeria.</small>
+          <div class="photo-picker-row">
+            <label class="btn-secondary photo-picker-btn">
+              📁 Galeria
+              <input type="file" id="vasePhotoGallery" accept="image/*" style="display:none;" />
+            </label>
+            <label class="btn-primary photo-picker-btn" style="justify-content:center;">
+              📷 Tirar Foto
+              <input type="file" id="vasePhotoCamera" accept="image/*" capture="environment" style="display:none;" />
+            </label>
+          </div>
         </div>
 
         <div class="form-group">
@@ -494,10 +519,16 @@
       <div>
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
           <h4 style="color: var(--moss); font-family: 'Playfair Display', serif;">📸 Galeria de Evolução</h4>
-          <label class="btn-secondary" style="cursor:pointer; font-size:0.78rem;">
-            + Adicionar Foto
-            <input type="file" accept="image/*" style="display:none;" onchange="addGalleryPhoto(event)" />
-          </label>
+          <div style="display:flex; gap:0.4rem;">
+            <label class="btn-secondary" style="cursor:pointer; font-size:0.78rem;">
+              📁 Galeria
+              <input type="file" accept="image/*" style="display:none;" onchange="addGalleryPhoto(event)" />
+            </label>
+            <label class="btn-secondary" style="cursor:pointer; font-size:0.78rem; background:var(--terra);">
+              📷 Câmera
+              <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="addGalleryPhoto(event)" />
+            </label>
+          </div>
         </div>
         <div id="vaseDetailGallery" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:0.6rem;"></div>
       </div>
@@ -532,6 +563,64 @@
     let currentSelectedSpecies = null;
     let currentDetailVaseId = null;
     let activeDrawerId = null;
+    let searchTerm = '';
+
+    // Arquivos selecionados via galeria OU câmera (guardados fora dos inputs,
+    // já que dois inputs distintos alimentam a mesma foto)
+    let speciePhotoFile = null;
+    let vasePhotoFile = null;
+    let aiImageFile = null;
+
+    // Liga um par de inputs (galeria + câmera) a uma variável de arquivo e a um preview opcional.
+    // O atributo capture="environment" no input de câmera é o que faz o navegador do celular
+    // solicitar acesso à câmera e abri-la diretamente, em vez de mostrar a galeria.
+    function wireImagePicker(galleryInputId, cameraInputId, previewId, onSelect) {
+      const galleryInput = document.getElementById(galleryInputId);
+      const cameraInput = document.getElementById(cameraInputId);
+      const preview = previewId ? document.getElementById(previewId) : null;
+
+      function handle(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        onSelect(file);
+        if (preview) {
+          const reader = new FileReader();
+          reader.onload = () => { preview.src = reader.result; preview.style.display = 'block'; };
+          reader.readAsDataURL(file);
+        }
+      }
+
+      galleryInput.addEventListener('change', handle);
+      cameraInput.addEventListener('change', handle);
+    }
+
+    wireImagePicker('speciePhotoGallery', 'speciePhotoCamera', 'speciePhotoPreview', (file) => { speciePhotoFile = file; });
+    wireImagePicker('vasePhotoGallery', 'vasePhotoCamera', 'vasePhotoPreview', (file) => { vasePhotoFile = file; });
+    wireImagePicker('aiImageGallery', 'aiImageCamera', 'aiImagePreview', (file) => { aiImageFile = file; });
+
+    // ==================== BUSCA / FILTRO ====================
+    window.applySpeciesSearch = function() {
+      searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
+      renderSpeciesGrid();
+    };
+
+    function speciesMatchesSearch(sp) {
+      if (!searchTerm) return true;
+      const speciesVases = allVases.filter(v => v.speciesId === sp.firestoreId);
+      const haystack = [
+        sp.name, sp.scientific, sp.category, sp.light, sp.water, sp.pruning,
+        sp.soil, sp.fertilizer, sp.naturalFertilizer,
+        ...speciesVases.map(v => v.name)
+      ].filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(searchTerm);
+    }
+
+    function petToxicityIcon(level) {
+      if (level === 'Letal') return '🔴';
+      if (level === 'Tóxica') return '🟠';
+      if (level === 'Segura') return '🟢';
+      return '🐾';
+    }
 
     function fileToBase64(file) {
       return new Promise((resolve, reject) => {
@@ -620,7 +709,14 @@
         return;
       }
 
-      allSpecies.forEach(sp => {
+      const filteredSpecies = allSpecies.filter(speciesMatchesSearch);
+
+      if (filteredSpecies.length === 0) {
+        container.innerHTML = '<p style="color:#666;">Nenhum resultado encontrado para essa busca.</p>';
+        return;
+      }
+
+      filteredSpecies.forEach(sp => {
         const countVases = allVases.filter(v => v.speciesId === sp.firestoreId).length;
 
         const card = document.createElement('div');
@@ -682,7 +778,14 @@
         { icon: "🧪", label: "Adubação Comercial", val: species.fertilizer },
         { icon: "🍌", label: "Adubação Natural", val: species.naturalFertilizer },
         { icon: "💡", label: "Dica Extra", val: species.extraTips },
-        { icon: "⚠️", label: "Observações", val: species.observations }
+        { icon: "⚠️", label: "Observações", val: species.observations },
+        {
+          icon: petToxicityIcon(species.petToxicity),
+          label: "Toxicidade Pet",
+          val: species.petToxicity
+            ? (species.petWarning ? `${species.petToxicity} — ${species.petWarning}` : species.petToxicity)
+            : null
+        }
       ];
 
       let countBadges = 0;
@@ -902,6 +1005,7 @@
       document.getElementById('speciesModalTitle').innerText = 'Cadastrar Nova Espécie';
       document.getElementById('speciePhotoPreview').style.display = 'none';
       document.getElementById('speciePhotoPreview').src = '';
+      speciePhotoFile = null;
       openDrawer('drawerAddSpecies');
     };
 
@@ -926,7 +1030,10 @@
       document.getElementById('fieldNaturalFertilizer').value = sp.naturalFertilizer || '';
       document.getElementById('fieldExtraTips').value = sp.extraTips || '';
       document.getElementById('fieldObservations').value = sp.observations || '';
+      document.getElementById('fieldPetToxicity').value = sp.petToxicity || '';
+      document.getElementById('fieldPetWarning').value = sp.petWarning || '';
 
+      speciePhotoFile = null;
       const preview = document.getElementById('speciePhotoPreview');
       if (sp.photo) {
         preview.src = sp.photo;
@@ -947,7 +1054,6 @@
       event.preventDefault();
       const btn = document.getElementById('btnSaveSpecies');
       const editId = document.getElementById('speciesEditId').value;
-      const photoFile = document.getElementById('speciePhotoInput').files[0];
 
       const speciesData = {
         name: document.getElementById('specieName').value.trim(),
@@ -964,13 +1070,15 @@
         naturalFertilizer: document.getElementById('fieldNaturalFertilizer').value.trim(),
         extraTips: document.getElementById('fieldExtraTips').value.trim(),
         observations: document.getElementById('fieldObservations').value.trim(),
+        petToxicity: document.getElementById('fieldPetToxicity').value,
+        petWarning: document.getElementById('fieldPetWarning').value.trim(),
       };
 
       btn.disabled = true;
 
       try {
-        if (photoFile) {
-          speciesData.photo = await fileToBase64(photoFile);
+        if (speciePhotoFile) {
+          speciesData.photo = await fileToBase64(speciePhotoFile);
         }
 
         if (editId) {
@@ -982,6 +1090,7 @@
         }
         document.getElementById('formSpecies').reset();
         document.getElementById('speciePhotoPreview').style.display = 'none';
+        speciePhotoFile = null;
         closeActiveDrawer();
       } catch (err) {
         alert('Erro ao salvar espécie: ' + err.message);
@@ -1037,13 +1146,11 @@
         document.getElementById('fieldFertilizer').value = data.fertilizer || '';
         document.getElementById('fieldNaturalFertilizer').value = data.natural_fertilizer || '';
         document.getElementById('fieldExtraTips').value = data.extra_tips || '';
+        document.getElementById('fieldObservations').value = data.observations || '';
 
-        let observations = data.observations || '';
-        if (data.pet_toxic) {
-          const warn = data.pet_warning ? `Tóxica para pets: ${data.pet_warning}` : 'Esta planta é tóxica para pets.';
-          observations = observations ? `${observations}\n⚠️ ${warn}` : `⚠️ ${warn}`;
-        }
-        document.getElementById('fieldObservations').value = observations;
+        const validLevels = ['Segura', 'Tóxica', 'Letal'];
+        document.getElementById('fieldPetToxicity').value = validLevels.includes(data.pet_toxicity) ? data.pet_toxicity : '';
+        document.getElementById('fieldPetWarning').value = data.pet_warning || '';
       } catch (err) {
         alert('Erro ao consultar IA: ' + err.message);
       } finally {
@@ -1059,6 +1166,7 @@
       document.getElementById('vaseModalTitle').innerText = 'Cadastrar Novo Vaso';
       document.getElementById('vasePhotoPreview').style.display = 'none';
       document.getElementById('vasePhotoPreview').src = '';
+      vasePhotoFile = null;
       openDrawer('drawerAddVase');
     };
 
@@ -1074,6 +1182,7 @@
       document.getElementById('vaseSize').value = vase.size || '';
       document.getElementById('vaseRepotDate').value = vase.lastRepot ? vase.lastRepot.slice(0, 10) : '';
 
+      vasePhotoFile = null;
       const preview = document.getElementById('vasePhotoPreview');
       if (vase.photo) {
         preview.src = vase.photo;
@@ -1096,7 +1205,6 @@
       const icon = document.getElementById('vaseIcon').value || '🪴';
       const size = document.getElementById('vaseSize').value.trim();
       const repotDate = document.getElementById('vaseRepotDate').value;
-      const photoFile = document.getElementById('vasePhotoInput').files[0];
 
       btn.disabled = true;
 
@@ -1105,8 +1213,8 @@
           const vaseDoc = doc(db, "vases", editId);
           const updatePayload = { name, size, icon };
 
-          if (photoFile) {
-            const photoBase64 = await fileToBase64(photoFile);
+          if (vasePhotoFile) {
+            const photoBase64 = await fileToBase64(vasePhotoFile);
             updatePayload.photo = photoBase64;
             updatePayload.photoHistory = arrayUnion({ photo: photoBase64, date: new Date().toISOString() });
           }
@@ -1120,8 +1228,8 @@
           let photoBase64 = '';
           let photoHistory = [];
 
-          if (photoFile) {
-            photoBase64 = await fileToBase64(photoFile);
+          if (vasePhotoFile) {
+            photoBase64 = await fileToBase64(vasePhotoFile);
             photoHistory = [{ photo: photoBase64, date: new Date().toISOString() }];
           }
 
@@ -1147,6 +1255,7 @@
 
         document.getElementById('formVase').reset();
         document.getElementById('vasePhotoPreview').style.display = 'none';
+        vasePhotoFile = null;
         closeActiveDrawer();
       } catch (err) {
         alert('Erro ao salvar vaso: ' + err.message);
@@ -1283,18 +1392,16 @@
 
     // DIAGNÓSTICO IA
     window.runAIDiagnosis = async function() {
-      const fileInput = document.getElementById('aiImageInput');
-      const file = fileInput.files[0];
       const resultEl = document.getElementById('aiResult');
 
-      if (!file) return alert('Selecione uma foto da planta primeiro.');
+      if (!aiImageFile) return alert('Selecione ou tire uma foto da planta primeiro.');
 
       resultEl.style.display = 'block';
       resultEl.innerHTML = '🔍 Analisando a foto com IA, aguarde...';
 
       try {
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('file', aiImageFile);
 
         const response = await fetch(WORKER_URL + 'diagnose-plant', {
           method: 'POST',
