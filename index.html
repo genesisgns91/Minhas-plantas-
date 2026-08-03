@@ -268,12 +268,12 @@
 
     // INSIRA AS CONFIGURAÇÕES DO SEU PROJETO FIREBASE AQUI
     const firebaseConfig = {
-      apiKey: "SEU_API_KEY",
-      authDomain: "SEU_PROJECT.firebaseapp.com",
-      projectId: "SEU_PROJECT_ID",
-      storageBucket: "SEU_PROJECT.appspot.com",
-      messagingSenderId: "SEU_SENDER_ID",
-      appId: "SEU_APP_ID"
+      apiKey: "AIzaSyBO2dpMGZG5N7-5wLTexU2puDsGjxzSDaI",
+      authDomain: "minhasplantas-9b229.firebaseapp.com",
+      projectId: "minhasplantas-9b229",
+      storageBucket: "minhasplantas-9b229.firebasestorage.app",
+      messagingSenderId: "568939226178",
+      appId: "1:568939226178:web:dcc77000360c7fdadcb9db"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -294,6 +294,10 @@
     onSnapshot(speciesCol, (snapshot) => {
       allSpecies = snapshot.docs.map(d => ({ firestoreId: d.id, ...d.data() }));
       renderSpeciesGrid();
+    }, (err) => {
+      console.error("Erro ao carregar espécies do Firestore:", err);
+      document.getElementById('speciesGrid').innerHTML =
+        `<p style="color:var(--red-alert);">Erro ao conectar com o banco de dados: ${err.message}. Verifique as Regras de Segurança do Firestore.</p>`;
     });
 
     onSnapshot(vasesCol, (snapshot) => {
@@ -304,6 +308,8 @@
       if (currentDetailVaseId) {
         renderVaseDetail(currentDetailVaseId);
       }
+    }, (err) => {
+      console.error("Erro ao carregar vasos do Firestore:", err);
     });
 
     // RENDERIZAR CARDS DE ESPÉCIES
