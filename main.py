@@ -1,6 +1,6 @@
 import os
 import json
-from datetime import datetime
+import datetime
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import google.generativeai as genai
@@ -15,14 +15,13 @@ app = FastAPI(
 # Habilita CORS para permitir requisições do seu Frontend hospedado no Cloudflare Pages
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Em produção, você pode alterar para o domínio do seu Cloudflare
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Configuração do Google Gemini API
-# A chave de API deve ser configurada nas Variáveis de Ambiente do Render/Hugging Face com o nome GEMINI_API_KEY
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
@@ -33,7 +32,7 @@ def calculate_moon_phase():
     Calcula a fase atual da lua com base no horário UTC atual.
     Retorna o nome da fase em português e uma breve recomendação agronômica.
     """
-    now = ephem.Date(datetime.utcnow())
+    now = ephem.Date(datetime.datetime.now(datetime.timezone.utc))
     next_new = ephem.next_new_moon(now)
     prev_new = ephem.previous_new_moon(now)
     
@@ -109,7 +108,6 @@ async def auto_fill_plant(plant_name: str = Form(...)):
         model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(prompt)
         
-        # Limpa formatação Markdown se o modelo retornar com ```json ... ```
         cleaned_response = response.text.strip().replace("```json", "").replace("```", "")
         data = json.loads(cleaned_response)
         return data
