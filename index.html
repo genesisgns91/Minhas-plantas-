@@ -71,8 +71,16 @@
     /* CARDS MINIMALISTAS DE CUIDADOS DA ESPÉCIE */
     .care-badges-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 0.6rem; margin-top: 0.6rem; }
     .care-badge-item { background: var(--cream); border: 1px solid var(--mist); padding: 0.6rem 0.8rem; border-radius: 10px; display: flex; flex-direction: column; gap: 0.2rem; }
-    .care-badge-label { font-size: 0.65rem; font-weight: 700; color: var(--sage); text-transform: uppercase; letter-spacing: 0.03em; }
+    .care-badge-label { font-size: 0.65rem; font-weight: 700; color: var(--sage); text-transform: uppercase; letter-spacing: 0.03em; display: flex; align-items: center; gap: 0.3rem; }
+    .care-badge-icon { font-size: 0.95rem; }
     .care-badge-val { font-size: 0.78rem; color: var(--ink); font-weight: 500; word-break: break-word; }
+
+    /* COVER / ÍCONE DE ESPÉCIE E VASO */
+    .cover-icon { font-size: 2rem; background: var(--cream); padding: 0.4rem; border-radius: 10px; width: 3rem; height: 3rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .cover-photo-thumb { width: 3rem; height: 3rem; border-radius: 10px; object-fit: cover; flex-shrink: 0; }
+    .cover-icon-lg { font-size: 2.2rem; background: var(--cream); border-radius: 12px; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .cover-photo-lg { width: 60px; height: 60px; border-radius: 12px; object-fit: cover; flex-shrink: 0; }
+    .photo-preview { width: 100%; max-height: 160px; object-fit: cover; border-radius: 10px; margin-top: 0.5rem; display: none; }
 
     /* TIMELINE DE CUIDADOS CRONOLÓGICA */
     .timeline { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.6rem; max-height: 220px; overflow-y: auto; }
@@ -180,9 +188,12 @@
         </button>
 
         <div class="header-bar" style="margin-bottom: 1rem;">
-          <div class="header-title">
-            <h2 id="detailSpeciesName">Nome da Espécie</h2>
-            <p id="detailSpeciesScientific" style="font-style: italic; color: var(--sage);"></p>
+          <div class="header-title" style="display:flex; align-items:center; gap:1rem;">
+            <div id="detailSpeciesCover" class="cover-icon-lg">🪴</div>
+            <div>
+              <h2 id="detailSpeciesName">Nome da Espécie</h2>
+              <p id="detailSpeciesScientific" style="font-style: italic; color: var(--sage);"></p>
+            </div>
           </div>
           <div style="display:flex; gap:0.5rem;">
             <button class="btn-secondary" onclick="editCurrentSpecies()">✏️ Editar Espécie</button>
@@ -210,6 +221,7 @@
           <div class="form-group">
             <label>Foto da Planta</label>
             <input type="file" id="aiImageInput" accept="image/*" class="form-control" />
+            <small style="color:var(--sage); font-size:0.72rem;">No celular, você pode tirar a foto na hora ou escolher da galeria.</small>
           </div>
           <button class="btn-primary" style="width: 100%; justify-content: center;" onclick="runAIDiagnosis()">
             🔍 Analisar com IA
@@ -250,6 +262,28 @@
         <div class="form-group">
           <label>Nome Científico</label>
           <input type="text" id="specieScientific" class="form-control" placeholder="Epipremnum aureum" />
+        </div>
+
+        <div class="form-group">
+          <label>Ícone da Espécie</label>
+          <select id="specieIcon" class="form-control">
+            <option value="🪴">🪴 Vaso</option>
+            <option value="🌱">🌱 Broto</option>
+            <option value="🌿">🌿 Folhagem</option>
+            <option value="🌵">🌵 Suculenta / Cacto</option>
+            <option value="🌴">🌴 Palmeira</option>
+            <option value="🍀">🍀 Trevo</option>
+            <option value="🌸">🌸 Flor</option>
+            <option value="🍂">🍂 Folha Seca</option>
+          </select>
+          <small style="color:var(--sage); font-size:0.72rem;">Usado quando não houver foto de capa.</small>
+        </div>
+
+        <div class="form-group">
+          <label>Foto de Capa (Opcional)</label>
+          <img id="speciePhotoPreview" class="photo-preview" />
+          <input type="file" id="speciePhotoInput" accept="image/*" class="form-control" />
+          <small style="color:var(--sage); font-size:0.72rem;">No celular, você pode tirar a foto na hora ou escolher da galeria.</small>
         </div>
 
         <div class="form-section-title">📋 FICHA TÉCNICA DE CUIDADOS (CAMPOS INDIVIDUAIS)</div>
@@ -333,8 +367,25 @@
         </div>
 
         <div class="form-group">
+          <label>Ícone do Vaso</label>
+          <select id="vaseIcon" class="form-control">
+            <option value="🪴">🪴 Vaso</option>
+            <option value="🌱">🌱 Broto</option>
+            <option value="🌿">🌿 Folhagem</option>
+            <option value="🌵">🌵 Suculenta / Cacto</option>
+            <option value="🌴">🌴 Palmeira</option>
+            <option value="🍀">🍀 Trevo</option>
+            <option value="🌸">🌸 Flor</option>
+            <option value="🍂">🍂 Folha Seca</option>
+          </select>
+          <small style="color:var(--sage); font-size:0.72rem;">Usado quando não houver foto do vaso.</small>
+        </div>
+
+        <div class="form-group">
           <label>Foto do Vaso</label>
+          <img id="vasePhotoPreview" class="photo-preview" />
           <input type="file" id="vasePhotoInput" accept="image/*" class="form-control" />
+          <small style="color:var(--sage); font-size:0.72rem;">No celular, você pode tirar a foto na hora ou escolher da galeria.</small>
         </div>
 
         <div class="form-group">
@@ -401,7 +452,7 @@
       </div>
 
       <img id="vaseDetailPhoto" class="vase-img" style="height:220px;" />
-      <div id="vaseDetailPhotoPlaceholder" class="vase-img" style="height:220px; display:none; align-items:center; justify-content:center; color:#aaa;">🌱 Sem foto principal</div>
+      <div id="vaseDetailPhotoPlaceholder" class="vase-img" style="height:220px; display:none; align-items:center; justify-content:center; color:#aaa; font-size:2.4rem;">🌱</div>
 
       <div>
         <h4 style="color: var(--moss); margin-bottom: 0.6rem; font-family: 'Playfair Display', serif;">📊 Frequência de Cuidados</h4>
@@ -446,6 +497,7 @@
     const speciesCol = collection(db, "species");
     const vasesCol = collection(db, "vases");
 
+    // Base do Worker Cloudflare — sempre termina com "/", as rotas são concatenadas nas chamadas fetch
     const WORKER_URL = "https://shiny-sky-21dd.genesisgns.workers.dev/";
 
     let allSpecies = [];
@@ -453,6 +505,15 @@
     let currentSelectedSpecies = null;
     let currentDetailVaseId = null;
     let activeDrawerId = null;
+
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
 
     // ESCUTAR FIREBASE EM TEMPO REAL
     onSnapshot(speciesCol, (snapshot) => {
@@ -539,9 +600,13 @@
         card.className = 'species-card';
         card.onclick = () => openSpeciesDetail(sp);
 
+        const coverHtml = sp.photo
+          ? `<img src="${sp.photo}" class="cover-photo-thumb" />`
+          : `<div class="cover-icon">${sp.icon || '🪴'}</div>`;
+
         card.innerHTML = `
           <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-            <div style="font-size:2rem; background:var(--cream); padding:0.4rem; border-radius:10px;">🪴</div>
+            ${coverHtml}
             <div style="display:flex; gap:0.2rem;">
               <button class="btn-icon" onclick="event.stopPropagation(); editSpecies('${sp.firestoreId}')" title="Editar">✏️</button>
               <button class="btn-icon" onclick="event.stopPropagation(); deleteSpecies('${sp.firestoreId}')" title="Excluir">&times;</button>
@@ -567,21 +632,30 @@
       document.getElementById('detailSpeciesNameVases').innerText = species.name;
       document.getElementById('detailSpeciesScientific').innerText = species.scientific || '';
 
+      const coverEl = document.getElementById('detailSpeciesCover');
+      if (species.photo) {
+        coverEl.className = 'cover-photo-lg';
+        coverEl.innerHTML = `<img src="${species.photo}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;" />`;
+      } else {
+        coverEl.className = 'cover-icon-lg';
+        coverEl.innerHTML = species.icon || '🪴';
+      }
+
       // RENDERIZAR MINI CARDS DE CUIDADOS DA ESPÉCIE
       const careGrid = document.getElementById('detailSpeciesCareGrid');
       careGrid.innerHTML = '';
 
       const careFields = [
-        { label: "Categoria", val: species.category },
-        { label: "Luz / Sol", val: species.light },
-        { label: "Rega", val: species.water },
-        { label: "Poda", val: species.pruning },
-        { label: "Umidade", val: species.humidity },
-        { label: "Solo", val: species.soil },
-        { label: "Adubação Comercial", val: species.fertilizer },
-        { label: "Adubação Natural", val: species.naturalFertilizer },
-        { label: "Dica Extra", val: species.extraTips },
-        { label: "Observações", val: species.observations }
+        { icon: "🏷️", label: "Categoria", val: species.category },
+        { icon: "☀️", label: "Luz / Sol", val: species.light },
+        { icon: "💧", label: "Rega", val: species.water },
+        { icon: "✂️", label: "Poda", val: species.pruning },
+        { icon: "💦", label: "Umidade", val: species.humidity },
+        { icon: "🪱", label: "Solo", val: species.soil },
+        { icon: "🧪", label: "Adubação Comercial", val: species.fertilizer },
+        { icon: "🍌", label: "Adubação Natural", val: species.naturalFertilizer },
+        { icon: "💡", label: "Dica Extra", val: species.extraTips },
+        { icon: "⚠️", label: "Observações", val: species.observations }
       ];
 
       let countBadges = 0;
@@ -590,7 +664,7 @@
           countBadges++;
           careGrid.innerHTML += `
             <div class="care-badge-item">
-              <span class="care-badge-label">${f.label}</span>
+              <span class="care-badge-label"><span class="care-badge-icon">${f.icon}</span>${f.label}</span>
               <span class="care-badge-val">${f.val}</span>
             </div>`;
         }
@@ -637,7 +711,7 @@
         card.innerHTML = `
           ${vase.photo
             ? `<img src="${vase.photo}" class="vase-img" style="cursor:pointer;" onclick="openVaseDetail('${vase.firestoreId}')" />`
-            : `<div class="vase-img" style="display:flex; align-items:center; justify-content:center; color:#aaa; cursor:pointer;" onclick="openVaseDetail('${vase.firestoreId}')">🌱 Sem foto do vaso</div>`}
+            : `<div class="vase-img" style="display:flex; align-items:center; justify-content:center; font-size:2.6rem; cursor:pointer;" onclick="openVaseDetail('${vase.firestoreId}')">${vase.icon || '🪴'}</div>`}
 
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <h4 style="font-size:1.1rem; color:var(--moss); cursor:pointer;" onclick="openVaseDetail('${vase.firestoreId}')">${vase.name}</h4>
@@ -664,6 +738,8 @@
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.4rem;">
             <button class="btn-secondary" style="font-size:0.75rem;" onclick="recordCareQuick('${vase.firestoreId}', 'lastWater')">💧 Regar Hoje</button>
             <button class="btn-secondary" style="font-size:0.75rem;" onclick="recordCareQuick('${vase.firestoreId}', 'lastFertilizer')">🧪 Adubar Hoje</button>
+            <button class="btn-secondary" style="font-size:0.75rem;" onclick="recordCareQuick('${vase.firestoreId}', 'lastPruning')">✂️ Podar Hoje</button>
+            <button class="btn-secondary" style="font-size:0.75rem;" onclick="recordCareQuick('${vase.firestoreId}', 'lastRepot')">🪴 Transplantar Hoje</button>
           </div>
 
           <button class="btn-primary" style="font-size:0.78rem; padding:0.5rem;" onclick="openCareLogDrawer('${vase.firestoreId}')">
@@ -797,6 +873,8 @@
       document.getElementById('formSpecies').reset();
       document.getElementById('speciesEditId').value = '';
       document.getElementById('speciesModalTitle').innerText = 'Cadastrar Nova Espécie';
+      document.getElementById('speciePhotoPreview').style.display = 'none';
+      document.getElementById('speciePhotoPreview').src = '';
       openDrawer('drawerAddSpecies');
     };
 
@@ -809,6 +887,7 @@
 
       document.getElementById('specieName').value = sp.name || '';
       document.getElementById('specieScientific').value = sp.scientific || '';
+      document.getElementById('specieIcon').value = sp.icon || '🪴';
       document.getElementById('fieldCategory').value = sp.category || '';
       document.getElementById('fieldLight').value = sp.light || '';
       document.getElementById('fieldWater').value = sp.water || '';
@@ -821,6 +900,15 @@
       document.getElementById('fieldExtraTips').value = sp.extraTips || '';
       document.getElementById('fieldObservations').value = sp.observations || '';
 
+      const preview = document.getElementById('speciePhotoPreview');
+      if (sp.photo) {
+        preview.src = sp.photo;
+        preview.style.display = 'block';
+      } else {
+        preview.style.display = 'none';
+        preview.src = '';
+      }
+
       openDrawer('drawerAddSpecies');
     };
 
@@ -832,10 +920,12 @@
       event.preventDefault();
       const btn = document.getElementById('btnSaveSpecies');
       const editId = document.getElementById('speciesEditId').value;
+      const photoFile = document.getElementById('speciePhotoInput').files[0];
 
       const speciesData = {
         name: document.getElementById('specieName').value.trim(),
         scientific: document.getElementById('specieScientific').value.trim(),
+        icon: document.getElementById('specieIcon').value || '🪴',
         category: document.getElementById('fieldCategory').value.trim(),
         light: document.getElementById('fieldLight').value.trim(),
         water: document.getElementById('fieldWater').value.trim(),
@@ -852,13 +942,19 @@
       btn.disabled = true;
 
       try {
+        if (photoFile) {
+          speciesData.photo = await fileToBase64(photoFile);
+        }
+
         if (editId) {
           await updateDoc(doc(db, "species", editId), speciesData);
         } else {
+          if (!speciesData.photo) speciesData.photo = '';
           speciesData.createdAt = new Date().toISOString();
           await addDoc(speciesCol, speciesData);
         }
         document.getElementById('formSpecies').reset();
+        document.getElementById('speciePhotoPreview').style.display = 'none';
         closeActiveDrawer();
       } catch (err) {
         alert('Erro ao salvar espécie: ' + err.message);
@@ -888,50 +984,41 @@
       btn.disabled = true;
       btn.innerText = '✨ Consultando IA...';
 
-      const prompt = `
-      Forneça dados de cultivo sobre '${name}' em JSON VÁLIDO (sem markdown):
-      {
-        "scientific_name": "Nome científico",
-        "category": "Ex: Trepadeira / Folhosa",
-        "light": "Ex: Meia Sombra",
-        "water": "Ex: Moderada",
-        "water_days": 5,
-        "pruning": "Ex: Regular",
-        "humidity": "Ex: Alta",
-        "soil": "Ex: Substrato drenável",
-        "fertilizer": "Ex: NPK 10-10-10",
-        "natural_fertilizer": "Ex: Borra de café",
-        "extra_tips": "Dica de ouro",
-        "observations": "Evitar excesso de água"
-      }`;
-
       try {
-        const response = await fetch(WORKER_URL, {
+        const formData = new FormData();
+        formData.append('plant_name', name);
+
+        const response = await fetch(WORKER_URL + 'auto-fill-plant', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: prompt })
+          body: formData
         });
 
         const data = await response.json();
-        if (response.ok && data.resposta) {
-          const cleanedText = data.resposta.replace(/```json/g, '').replace(/```/g, '').trim();
-          const parsed = JSON.parse(cleanedText);
 
-          document.getElementById('specieScientific').value = parsed.scientific_name || '';
-          document.getElementById('fieldCategory').value = parsed.category || '';
-          document.getElementById('fieldLight').value = parsed.light || '';
-          document.getElementById('fieldWater').value = parsed.water || '';
-          document.getElementById('specieWaterDays').value = parsed.water_days || 5;
-          document.getElementById('fieldPruning').value = parsed.pruning || '';
-          document.getElementById('fieldHumidity').value = parsed.humidity || '';
-          document.getElementById('fieldSoil').value = parsed.soil || '';
-          document.getElementById('fieldFertilizer').value = parsed.fertilizer || '';
-          document.getElementById('fieldNaturalFertilizer').value = parsed.natural_fertilizer || '';
-          document.getElementById('fieldExtraTips').value = parsed.extra_tips || '';
-          document.getElementById('fieldObservations').value = parsed.observations || '';
+        if (!response.ok) {
+          throw new Error(data.error || 'Erro desconhecido ao consultar a IA.');
         }
+
+        document.getElementById('specieScientific').value = data.scientific_name || '';
+        document.getElementById('fieldCategory').value = data.category || '';
+        document.getElementById('fieldLight').value = data.light || '';
+        document.getElementById('fieldWater').value = data.water || '';
+        document.getElementById('specieWaterDays').value = data.water_days || 5;
+        document.getElementById('fieldPruning').value = data.pruning || '';
+        document.getElementById('fieldHumidity').value = data.humidity || '';
+        document.getElementById('fieldSoil').value = data.soil || '';
+        document.getElementById('fieldFertilizer').value = data.fertilizer || '';
+        document.getElementById('fieldNaturalFertilizer').value = data.natural_fertilizer || '';
+        document.getElementById('fieldExtraTips').value = data.extra_tips || '';
+
+        let observations = data.observations || '';
+        if (data.pet_toxic) {
+          const warn = data.pet_warning ? `Tóxica para pets: ${data.pet_warning}` : 'Esta planta é tóxica para pets.';
+          observations = observations ? `${observations}\n⚠️ ${warn}` : `⚠️ ${warn}`;
+        }
+        document.getElementById('fieldObservations').value = observations;
       } catch (err) {
-        alert('Erro ao consultar IA.');
+        alert('Erro ao consultar IA: ' + err.message);
       } finally {
         btn.disabled = false;
         btn.innerText = '✨ Preencher Ficha com IA';
@@ -943,6 +1030,8 @@
       document.getElementById('formVase').reset();
       document.getElementById('vaseEditId').value = '';
       document.getElementById('vaseModalTitle').innerText = 'Cadastrar Novo Vaso';
+      document.getElementById('vasePhotoPreview').style.display = 'none';
+      document.getElementById('vasePhotoPreview').src = '';
       openDrawer('drawerAddVase');
     };
 
@@ -954,20 +1043,21 @@
       document.getElementById('vaseModalTitle').innerText = 'Editar Vaso';
 
       document.getElementById('vaseName').value = vase.name || '';
+      document.getElementById('vaseIcon').value = vase.icon || '🪴';
       document.getElementById('vaseSize').value = vase.size || '';
       document.getElementById('vaseRepotDate').value = vase.lastRepot ? vase.lastRepot.slice(0, 10) : '';
 
+      const preview = document.getElementById('vasePhotoPreview');
+      if (vase.photo) {
+        preview.src = vase.photo;
+        preview.style.display = 'block';
+      } else {
+        preview.style.display = 'none';
+        preview.src = '';
+      }
+
       openDrawer('drawerAddVase');
     };
-
-    function fileToBase64(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    }
 
     window.saveVase = async function(event) {
       event.preventDefault();
@@ -976,6 +1066,7 @@
       const btn = document.getElementById('btnSaveVase');
       const editId = document.getElementById('vaseEditId').value;
       const name = document.getElementById('vaseName').value.trim();
+      const icon = document.getElementById('vaseIcon').value || '🪴';
       const size = document.getElementById('vaseSize').value.trim();
       const repotDate = document.getElementById('vaseRepotDate').value;
       const photoFile = document.getElementById('vasePhotoInput').files[0];
@@ -985,7 +1076,7 @@
       try {
         if (editId) {
           const vaseDoc = doc(db, "vases", editId);
-          const updatePayload = { name, size };
+          const updatePayload = { name, size, icon };
 
           if (photoFile) {
             const photoBase64 = await fileToBase64(photoFile);
@@ -1010,6 +1101,7 @@
           const vaseData = {
             speciesId: currentSelectedSpecies.firestoreId,
             name,
+            icon,
             size,
             photo: photoBase64,
             photoHistory,
@@ -1027,6 +1119,7 @@
         }
 
         document.getElementById('formVase').reset();
+        document.getElementById('vasePhotoPreview').style.display = 'none';
         closeActiveDrawer();
       } catch (err) {
         alert('Erro ao salvar vaso: ' + err.message);
@@ -1066,6 +1159,7 @@
       } else {
         photoEl.style.display = 'none';
         photoPlaceholder.style.display = 'flex';
+        photoPlaceholder.innerText = vase.icon || '🌱';
       }
 
       const history = vase.history || [];
@@ -1172,29 +1266,28 @@
       resultEl.innerHTML = '🔍 Analisando a foto com IA, aguarde...';
 
       try {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = async () => {
-          const base64 = reader.result.split(',')[1];
-          const response = await fetch(WORKER_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              prompt: "Analise a saúde desta planta e forneça diagnóstico e tratamentos.",
-              imageBase64: base64,
-              mimeType: file.type
-            })
-          });
+        const formData = new FormData();
+        formData.append('file', file);
 
-          const data = await response.json();
-          if (response.ok && data.resposta) {
-            resultEl.innerHTML = `<h4>🩺 Relatório Agronômico:</h4><div style="white-space: pre-line; margin-top:0.8rem;">${data.resposta}</div>`;
-          } else {
-            resultEl.innerHTML = `❌ Erro na análise.`;
-          }
-        };
+        const response = await fetch(WORKER_URL + 'diagnose-plant', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Erro desconhecido na análise.');
+        }
+
+        resultEl.innerHTML = `
+          <h4>🩺 Relatório Agronômico:</h4>
+          <div style="white-space: pre-line; margin-top:0.8rem;">${data.diagnosis}</div>
+          <div style="margin-top:1rem; padding-top:0.8rem; border-top:1px solid var(--mist); font-size:0.85rem; color:var(--sage);">
+            🌙 Fase da Lua: <b>${data.moon_phase}</b> — ${data.moon_tip}
+          </div>`;
       } catch (err) {
-        resultEl.innerHTML = `❌ Erro ao analisar a imagem.`;
+        resultEl.innerHTML = `❌ Erro ao analisar a imagem: ${err.message}`;
       }
     };
   </script>
