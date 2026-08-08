@@ -25,8 +25,75 @@ const db = getFirestore(app);
 const speciesCol = collection(db, "species");
 const vasesCol = collection(db, "vases");
 
-// Base do Worker Cloudflare — sempre termina com "/", as rotas são concatenadas nas chamadas fetch
-const WORKER_URL = "https://shiny-sky-21dd.genesisgns.workers.dev/";
+// ==================== WORKERS CLOUDFLARE (MULTI-CONTA COM FALLBACK) ====================
+// Cada Worker abaixo usa uma conta/chave de IA (Gemini) diferente. Quando a cota de uma
+// esgota (ou ela falha por qualquer motivo), o app tenta automaticamente a próxima da lista.
+// Todas sempre terminam com "/", as rotas são concatenadas nas chamadas fetch.
+const WORKER_URLS = [
+  "https://shiny-sky-21dd.genesisgns.workers.dev/",
+  "https://astro2.genesisgns.workers.dev/",
+  "https://astro-gns-proxy.genesisgns.workers.dev/"
+];
+
+// Lembra qual Worker funcionou por último, para já começar por ela na próxima vez
+// (evita insistir sempre na que já sabemos que está sem cota).
+const WORKER_INDEX_KEY = 'minhasplantas_worker_index';
+let currentWorkerIndex = 0;
+try {
+  const savedIndex = Number(localStorage.getItem(WORKER_INDEX_KEY));
+  if (!Number.isNaN(savedIndex) && savedIndex >= 0 && savedIndex < WORKER_URLS.length) {
+    currentWorkerIndex = savedIndex;
+  }
+} catch (e) { /* localStorage indisponível, segue com o índice 0 */ }
+
+function saveWorkerIndex() {
+  try { localStorage.setItem(WORKER_INDEX_KEY, String(currentWorkerIndex)); } catch (e) { /* ignora */ }
+}
+
+// Erros de validação do próprio pedido (ex: campo obrigatório faltando) não têm por quê
+// serem tentados de novo em outra conta — o erro se repetiria em todas. Qualquer outro
+// status (cota estourada, chave não configurada, erro interno, etc.) ou falha de rede
+// dispara a tentativa na próxima Worker da lista.
+function shouldTryNextWorker(status) {
+  return status !== 400;
+}
+
+// Faz a chamada tentando cada Worker em sequência, começando pela última que funcionou.
+// `path` é a rota (ex: 'auto-fill-plant'), `options` são as opções do fetch (method, body...).
+async function fetchFromWorkers(path, options) {
+  let lastResponse = null;
+  let lastError = null;
+
+  for (let attempt = 0; attempt < WORKER_URLS.length; attempt++) {
+    const index = (currentWorkerIndex + attempt) % WORKER_URLS.length;
+    const url = WORKER_URLS[index] + path;
+
+    try {
+      const response = await fetch(url, options);
+
+      if (response.ok) {
+        if (index !== currentWorkerIndex) {
+          currentWorkerIndex = index;
+          saveWorkerIndex();
+        }
+        return response;
+      }
+
+      lastResponse = response;
+      if (!shouldTryNextWorker(response.status)) {
+        return response; // erro do próprio pedido, não adianta tentar outra conta
+      }
+      console.warn(`Worker ${url} respondeu status ${response.status}, tentando a próxima conta...`);
+    } catch (err) {
+      lastError = err;
+      console.warn(`Worker ${url} falhou (${err.message}), tentando a próxima conta...`);
+    }
+  }
+
+  // Todas as Workers falharam
+  if (lastResponse) return lastResponse;
+  throw new Error('Não foi possível conectar a nenhuma das contas de IA disponíveis. Tente novamente mais tarde.');
+}
 
 let allSpecies = [];
 let allVases = [];
@@ -691,7 +758,7 @@ window.autoFillWithAI = async function() {
     const formData = new FormData();
     formData.append('plant_name', name);
 
-    const response = await fetch(WORKER_URL + 'auto-fill-plant', {
+    const response = await fetchFromWorkers('auto-fill-plant', {
       method: 'POST',
       body: formData
     });
@@ -699,7 +766,7 @@ window.autoFillWithAI = async function() {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.error || 'Erro desconhecido ao consultar a IA.');
+      throw new Error(data.error || 'Erro desconhecido ao consultar a IA (todas as contas indisponíveis no momento).');
     }
 
     document.getElementById('specieScientific').value = data.scientific_name || '';
@@ -965,7 +1032,7 @@ window.runAIDiagnosis = async function() {
     const formData = new FormData();
     formData.append('file', dataURLToBlob(aiImageData), 'diagnostico.jpg');
 
-    const response = await fetch(WORKER_URL + 'diagnose-plant', {
+    const response = await fetchFromWorkers('diagnose-plant', {
       method: 'POST',
       body: formData
     });
@@ -973,7 +1040,7 @@ window.runAIDiagnosis = async function() {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.error || 'Erro desconhecido na análise.');
+      throw new Error(data.error || 'Erro desconhecido na análise (todas as contas indisponíveis no momento).');
     }
 
     resultEl.innerHTML = `
