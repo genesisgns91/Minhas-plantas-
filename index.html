@@ -2,10 +2,11 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Minhas Plantas & Vasos 🌿</title>
+  <meta name="description" content="Controle de rega, adubação e evolução das suas plantas." />
 
-  <meta name="theme-color" content="#3a5335" />
+  <meta name="theme-color" content="#2f4a2c" />
   <link rel="manifest" href="manifest.json" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -21,472 +22,512 @@
 </head>
 <body>
 
+  <!-- Pétalas e folhas decorativas flutuando no fundo (geradas pelo app.js) -->
+  <div class="petals" id="petals" aria-hidden="true"></div>
+
   <div class="app-layout">
-    <aside class="sidebar">
-      <div class="brand">
-        <span style="font-size: 1.8rem;">🌿</span>
-        <h1>Minhas Plantas</h1>
+
+    <!-- ============ MENU LATERAL FIXO ============ -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-top">
+        <div class="brand">
+          <svg class="brand-logo" viewBox="0 0 64 64" aria-hidden="true">
+            <circle cx="32" cy="32" r="30" fill="rgba(255,255,255,.12)"/>
+            <path d="M22 44h20l-2.5 12h-15z" fill="#c16e41"/>
+            <rect x="20" y="40" width="24" height="6" rx="3" fill="#d98557"/>
+            <path d="M32 40V24" stroke="#bfe3b4" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+            <g class="logo-leaf-l"><path d="M32 30C22 30 16 24 16 15c9 0 16 5 16 15z" fill="#8fcf80"/></g>
+            <g class="logo-leaf-r"><path d="M32 26c0-9 6-15 16-15 0 9-6 15-16 15z" fill="#b6e6a8"/></g>
+            <circle cx="46" cy="14" r="3.4" fill="#e9a8b5"/>
+          </svg>
+          <div class="brand-text">
+            <h1>Minhas Plantas</h1>
+            <span>& Vasos</span>
+          </div>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" aria-label="Recolher ou expandir o menu" title="Recolher / expandir menu">‹</button>
       </div>
-      <nav>
-        <button class="nav-btn active" onclick="switchTab('species')">🌱 Espécies & Vasos</button>
-        <button class="nav-btn" onclick="switchTab('ai')">🤖 Diagnóstico IA</button>
+
+      <nav class="side-nav" aria-label="Navegação principal">
+        <button class="nav-btn active" data-tab="species" onclick="switchTab('species')">
+          <span class="nav-ico">🌱</span><span class="nav-label">Espécies & Vasos</span>
+        </button>
+        <button class="nav-btn" data-tab="ai" onclick="switchTab('ai')">
+          <span class="nav-ico">🩺</span><span class="nav-label">Diagnóstico IA</span>
+        </button>
       </nav>
+
+      <button class="btn btn-primary side-cta" onclick="openAddSpeciesModal()" title="Nova espécie">
+        <span class="plus">+</span><span class="nav-label">Nova Espécie</span>
+      </button>
+
+      <div class="side-tip">
+        <b>🌸 Dica do dia</b>
+        <p id="dailyTip">Carregando dica…</p>
+      </div>
     </aside>
 
-    <main class="main-content">
+    <!-- ============ CONTEÚDO ============ -->
+    <main class="main-content" id="main">
+      <div class="page">
 
-      <section id="sec-species">
-        <div class="header-bar">
-          <div class="header-title">
-            <h2>Visão Geral & Coleção</h2>
-            <p>Selecione uma espécie para gerenciar seus vasos e histórico</p>
-          </div>
-          <button class="btn-primary" onclick="openAddSpeciesModal()">
-            <span>+</span> Nova Espécie
-          </button>
-        </div>
-
-        <div class="dashboard-stats">
-          <div class="stat-card">
-            <div class="stat-icon">🌱</div>
-            <div class="stat-info">
-              <div class="value" id="statSpeciesCount">0</div>
-              <div class="label">Espécies Cadastradas</div>
+        <!-- ---------- ESPÉCIES (HOME) ---------- -->
+        <section id="sec-species" class="view is-active" aria-labelledby="heroGreeting">
+          <div class="hero">
+            <svg class="hero-flower" viewBox="0 0 100 100" aria-hidden="true">
+              <g transform="translate(50 50)">
+                <g fill="#e9a8b5" opacity=".85">
+                  <ellipse cx="0" cy="-26" rx="11" ry="20"/><ellipse cx="0" cy="-26" rx="11" ry="20" transform="rotate(60)"/>
+                  <ellipse cx="0" cy="-26" rx="11" ry="20" transform="rotate(120)"/><ellipse cx="0" cy="-26" rx="11" ry="20" transform="rotate(180)"/>
+                  <ellipse cx="0" cy="-26" rx="11" ry="20" transform="rotate(240)"/><ellipse cx="0" cy="-26" rx="11" ry="20" transform="rotate(300)"/>
+                </g>
+                <circle r="11" fill="#f2c14e"/><circle r="5" fill="#d9a233"/>
+              </g>
+            </svg>
+            <div class="hero-text">
+              <div class="hero-eyebrow" id="heroDate"></div>
+              <h2 id="heroGreeting">Olá! 🌿</h2>
+              <p id="heroSub">Carregando seu jardim…</p>
+            </div>
+            <div class="hero-actions">
+              <button class="btn btn-primary" onclick="openAddSpeciesModal()"><span>+</span> Nova Espécie</button>
             </div>
           </div>
-          <div class="stat-card">
-            <div class="stat-icon">🪴</div>
-            <div class="stat-info">
-              <div class="value" id="statPotsCount">0</div>
-              <div class="label">Vasos no Total</div>
+
+          <div class="dashboard-stats">
+            <div class="stat-card">
+              <div class="stat-icon">🌱</div>
+              <div class="stat-info"><div class="value" id="statSpeciesCount">0</div><div class="label">Espécies cadastradas</div></div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">🪴</div>
+              <div class="stat-info"><div class="value" id="statPotsCount">0</div><div class="label">Vasos no total</div></div>
+            </div>
+            <div class="stat-card water">
+              <div class="stat-icon">💧</div>
+              <div class="stat-info"><div class="value" id="statWateredToday">0</div><div class="label">Regados hoje</div></div>
+            </div>
+            <div class="stat-card alert" id="statNeedCard">
+              <div class="stat-icon">🔔</div>
+              <div class="stat-info"><div class="value" id="statNeedWater">0</div><div class="label">Precisam de rega</div></div>
             </div>
           </div>
-          <div class="stat-card">
-            <div class="stat-icon">💧</div>
-            <div class="stat-info">
-              <div class="value" id="statWateredToday">0</div>
-              <div class="label">Vasos Regados Hoje</div>
+
+          <div class="dash-row">
+            <div class="panel reminders-section">
+              <div class="panel-title"><span>⏰</span> Lembretes e tarefas próximas</div>
+              <div id="remindersList"><p class="muted">Nenhum lembrete próximo no momento.</p></div>
+            </div>
+            <div class="panel tip-panel">
+              <div class="panel-title"><span>🌸</span> Sabia que?</div>
+              <p id="dailyTipMain"></p>
             </div>
           </div>
-        </div>
 
-        <div class="search-box-wrap">
-          <span>🔍</span>
-          <input type="text" id="searchInput" placeholder="Buscar por vaso, espécie, categoria, luz, rega, poda, solo, adubação..." oninput="applySpeciesSearch()" />
-          <button class="btn-icon" style="white-space:nowrap; font-size:0.78rem; border:1px solid var(--mist); border-radius:8px; padding:0.4rem 0.7rem; color:var(--sage);" onclick="waterAllFiltered()" title="Regar todos os vasos filtrados">
-            💧 Regar Todos
-          </button>
-        </div>
-
-        <div class="reminders-section">
-          <div class="reminders-header">
-            <span>⏰</span> Lembretes Agendados & Tarefas Próximas
+          <div class="toolbar">
+            <div class="search-box-wrap" id="searchWrap">
+              <span class="s-ico">🔍</span>
+              <input type="search" id="searchInput" placeholder="Buscar por vaso, espécie, luz, rega, solo, adubação…" oninput="applySpeciesSearch()" autocomplete="off" aria-label="Buscar plantas" />
+              <button class="btn btn-icon search-clear" onclick="clearSearch()" aria-label="Limpar busca">✕</button>
+            </div>
+            <div class="chips" role="group" aria-label="Filtros">
+              <button class="chip btn-chip active" data-filter="all" onclick="setFilter('all')">🌿 Todas</button>
+              <button class="chip btn-chip" data-filter="thirsty" onclick="setFilter('thirsty')">💧 Precisam de rega</button>
+              <button class="chip btn-chip" data-filter="safe" onclick="setFilter('safe')">🐾 Seguras p/ pets</button>
+            </div>
+            <button class="btn btn-secondary" onclick="waterAllFiltered()" title="Regar todos os vasos filtrados">💧 Regar todos</button>
           </div>
-          <div id="remindersList">
-            <p style="color:#888; font-size:0.85rem;">Nenhum lembrete próximo no momento.</p>
+
+          <h3 class="section-title">🌱 Minhas espécies <span class="count" id="speciesCountChip">0</span></h3>
+          <div class="species-grid" id="speciesGrid">
+            <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
           </div>
-        </div>
+        </section>
 
-        <h3 style="color: var(--moss); font-family: 'Playfair Display', serif; margin-bottom: 1rem;">🌱 Minhas Espécies</h3>
-        <div class="species-grid" id="speciesGrid">
-          <p style="color: #666;">Carregando espécies...</p>
-        </div>
-      </section>
+        <!-- ---------- DETALHE DA ESPÉCIE ---------- -->
+        <section id="sec-species-detail" class="view" aria-label="Detalhes da espécie">
+          <div class="breadcrumb">
+            <button onclick="backToSpecies()">← Espécies</button><span>/</span><b id="breadcrumbName"></b>
+          </div>
 
-      <section id="sec-species-detail" style="display: none;">
-        <button onclick="backToSpecies()" style="background:none; border:none; color:var(--moss); font-weight:700; cursor:pointer; margin-bottom:1rem; font-size:1rem;">
-          ← Voltar para Espécies
-        </button>
+          <div class="detail-head">
+            <div class="detail-id">
+              <div id="detailSpeciesCover" class="cover-icon-lg">🪴</div>
+              <div>
+                <h2 id="detailSpeciesName">Nome da espécie</h2>
+                <p id="detailSpeciesScientific" class="sci"></p>
+              </div>
+            </div>
+            <div class="detail-actions">
+              <button class="btn btn-secondary" onclick="editCurrentSpecies()">✏️ Editar espécie</button>
+              <button class="btn btn-primary" onclick="openAddVaseModal()">🪴 Adicionar vaso</button>
+            </div>
+          </div>
 
-        <div class="header-bar" style="margin-bottom: 1rem;">
-          <div class="header-title" style="display:flex; align-items:center; gap:1rem;">
-            <div id="detailSpeciesCover" class="cover-icon-lg">🪴</div>
+          <div class="detail-layout">
+            <aside class="panel care-sheet">
+              <div class="panel-title"><span>📋</span> Ficha técnica de cultivo</div>
+              <div class="care-list" id="detailSpeciesCareGrid"></div>
+            </aside>
             <div>
-              <h2 id="detailSpeciesName">Nome da Espécie</h2>
-              <p id="detailSpeciesScientific" style="font-style: italic; color: var(--sage);"></p>
+              <div class="vases-section-head">
+                <h3>🪴 Vasos de <span id="detailSpeciesNameVases"></span></h3>
+              </div>
+              <div class="vases-grid" id="vasesGrid"></div>
             </div>
           </div>
-          <div style="display:flex; gap:0.5rem;">
-            <button class="btn-secondary" onclick="editCurrentSpecies()">✏️ Editar Espécie</button>
-            <button class="btn-primary" onclick="openAddVaseModal()">🪴 Adicionar Vaso</button>
-          </div>
-        </div>
+        </section>
 
-        <div style="background: var(--white); padding: 1.2rem; border-radius: var(--radius); margin-bottom: 2rem; box-shadow: var(--shadow);">
-          <h4 style="color: var(--moss); margin-bottom: 0.8rem; font-family: 'Playfair Display', serif;">📋 Guias & Ficha Técnica de Cultivo</h4>
-          <div class="care-badges-grid" id="detailSpeciesCareGrid"></div>
-        </div>
-
-        <h3 style="color: var(--moss); font-family: 'Playfair Display', serif; margin-bottom: 1rem;">🪴 Vasos de <span id="detailSpeciesNameVases"></span></h3>
-        <div class="vases-grid" id="vasesGrid"></div>
-      </section>
-
-      <section id="sec-ai" style="display: none;">
-        <div class="header-bar">
-          <div class="header-title">
-            <h2>Diagnóstico de Saúde 🩺</h2>
-            <p>Envie uma foto para a IA analisar pragas ou deficiências</p>
-          </div>
-        </div>
-        <div style="background: white; padding: 1.5rem; border-radius: var(--radius); box-shadow: var(--shadow);">
-          <div class="form-group">
-            <label>Foto da Planta</label>
-            <img id="aiImagePreview" class="photo-preview" />
-            <div class="photo-picker-row">
-              <label class="btn-secondary photo-picker-btn">
-                📁 Galeria
-                <input type="file" id="aiImageGallery" accept="image/*" style="display:none;" />
-              </label>
-              <label class="btn-primary photo-picker-btn" style="justify-content:center;">
-                📷 Tirar Foto
-                <input type="file" id="aiImageCamera" accept="image/*" capture="environment" style="display:none;" />
-              </label>
+        <!-- ---------- DIAGNÓSTICO IA ---------- -->
+        <section id="sec-ai" class="view" aria-label="Diagnóstico por IA">
+          <div class="header-bar">
+            <div class="header-title">
+              <h2>Diagnóstico de saúde 🩺</h2>
+              <p>Envie uma foto para a IA analisar pragas, doenças ou deficiências</p>
             </div>
           </div>
-          <button class="btn-primary" style="width: 100%; justify-content: center;" onclick="runAIDiagnosis()">
-            🔍 Analisar com IA
-          </button>
-          <div id="aiResult" style="margin-top: 1.5rem; display: none; padding: 1.2rem; background: var(--cream); border-radius: 12px; line-height: 1.6;"></div>
-        </div>
-      </section>
+          <div class="ai-layout">
+            <div class="panel">
+              <div class="dropzone" id="aiDropzone">
+                <span class="dz-emoji">🍃</span>
+                <p>Arraste uma foto aqui, escolha da galeria ou tire na hora.</p>
+                <img id="aiImagePreview" class="photo-preview" alt="Prévia da foto" />
+                <div class="photo-picker-row">
+                  <label class="btn btn-secondary photo-picker-btn">
+                    📁 Galeria
+                    <input type="file" id="aiImageGallery" accept="image/*" hidden />
+                  </label>
+                  <label class="btn btn-primary photo-picker-btn">
+                    📷 Tirar foto
+                    <input type="file" id="aiImageCamera" accept="image/*" capture="environment" hidden />
+                  </label>
+                </div>
+              </div>
+              <button class="btn btn-primary" style="width:100%; margin-top:1rem; padding:1rem;" onclick="runAIDiagnosis()">🔍 Analisar com IA</button>
+            </div>
+            <div>
+              <div class="ai-placeholder" id="aiPlaceholder">
+                <div><div style="font-size:2.6rem;">🌿</div><p style="margin-top:.5rem;">O relatório aparecerá aqui depois da análise.</p></div>
+              </div>
+              <div id="aiResult" class="ai-result"></div>
+            </div>
+          </div>
+        </section>
+
+      </div>
     </main>
   </div>
 
-  <nav class="bottom-nav">
-    <button class="nav-btn active" onclick="switchTab('species')">
-      <span>🌱</span> Espécies
-    </button>
-    <button class="nav-btn" onclick="switchTab('ai')">
-      <span>🤖</span> Diagnóstico
-    </button>
+  <!-- ============ NAVEGAÇÃO MOBILE ============ -->
+  <nav class="bottom-nav" aria-label="Navegação principal">
+    <button class="nav-btn active" data-tab="species" onclick="switchTab('species')"><span class="nav-ico">🌱</span>Espécies</button>
+    <button class="fab" onclick="openAddSpeciesModal()" aria-label="Nova espécie">+</button>
+    <button class="nav-btn" data-tab="ai" onclick="switchTab('ai')"><span class="nav-ico">🩺</span>Diagnóstico</button>
   </nav>
 
+  <!-- ============ DRAWER: ESPÉCIE ============ -->
   <div class="modal-overlay" id="drawerAddSpecies">
-    <div class="drawer">
+    <div class="drawer" role="dialog" aria-modal="true" aria-labelledby="speciesModalTitle">
+      <div class="drawer-handle"></div>
       <div class="drawer-header">
-        <h3 id="speciesModalTitle" style="font-family: 'Playfair Display', serif; color: var(--moss);">Cadastrar Espécie</h3>
-        <button class="btn-close" onclick="closeActiveDrawer()">&times;</button>
+        <h3 id="speciesModalTitle">Cadastrar espécie</h3>
+        <button class="btn-close" onclick="closeActiveDrawer()" aria-label="Fechar">&times;</button>
       </div>
+      <div class="drawer-inner">
+        <form id="formSpecies" onsubmit="saveSpecies(event)">
+          <input type="hidden" id="speciesEditId" />
 
-      <form id="formSpecies" onsubmit="saveSpecies(event)">
-        <input type="hidden" id="speciesEditId" />
+          <div class="form-grid">
+            <div class="form-group span-2">
+              <label for="specieName">Nome popular</label>
+              <input type="text" id="specieName" class="form-control" placeholder="Ex: Jiboia, Samambaia, Monstera" required />
+              <button type="button" class="btn btn-secondary" id="btnAutoFill" style="margin-top:.4rem; align-self:flex-start;" onclick="autoFillWithAI(this)">✨ Preencher ficha com IA</button>
+            </div>
 
-        <div class="form-group">
-          <label>Nome Popular</label>
-          <input type="text" id="specieName" class="form-control" placeholder="Ex: Jiboia, Samambaia, Monstera" required />
-          <button type="button" class="btn-secondary" style="margin-top:0.4rem;" onclick="autoFillWithAI()">
-            ✨ Preencher Ficha com IA
-          </button>
-        </div>
+            <div class="form-group span-2">
+              <label for="specieScientific">Outros nomes comuns</label>
+              <input type="text" id="specieScientific" class="form-control" placeholder="Ex: Jiboia-verde, Escada-de-macaco" />
+            </div>
 
-        <div class="form-group">
-          <label>Outros Nomes Comuns</label>
-          <input type="text" id="specieScientific" class="form-control" placeholder="Ex: Jiboia-verde, Escada-de-macaco" />
-        </div>
+            <div class="form-group">
+              <label for="specieIcon">Ícone da espécie</label>
+              <select id="specieIcon" class="form-control">
+                <option value="🪴">🪴 Vaso</option>
+                <option value="🌱">🌱 Broto / Mudinha</option>
+                <option value="🌿">🌿 Folhagem</option>
+                <option value="🌵">🌵 Cacto / Suculenta</option>
+                <option value="🌴">🌴 Palmeira</option>
+                <option value="🍀">🍀 Trevo de Quatro Folhas</option>
+                <option value="☘️">☘️ Trevo</option>
+                <option value="🍃">🍃 Folha ao Vento</option>
+                <option value="🍂">🍂 Folha Seca</option>
+                <option value="🍁">🍁 Folha de Outono</option>
+                <option value="🌾">🌾 Capim / Trigo</option>
+                <option value="🎋">🎋 Bambu</option>
+                <option value="🍄">🍄 Cogumelo</option>
+                <option value="🌸">🌸 Flor de Cerejeira</option>
+                <option value="🌺">🌺 Hibisco</option>
+                <option value="🌹">🌹 Rosa</option>
+                <option value="🥀">🥀 Rosa Murcha</option>
+                <option value="🌷">🌷 Tulipa</option>
+                <option value="🌻">🌻 Girassol</option>
+                <option value="🌼">🌼 Margarida</option>
+                <option value="🪻">🪻 Lavanda</option>
+                <option value="🪷">🪷 Flor de Lótus</option>
+                <option value="💐">💐 Buquê de Flores</option>
+                <option value="🌳">🌳 Árvore</option>
+                <option value="🌲">🌲 Pinheiro</option>
+                <option value="🪵">🪵 Madeira / Tronco</option>
+                <option value="🍎">🍎 Maçã Vermelha</option>
+                <option value="🍏">🍏 Maçã Verde</option>
+                <option value="🍐">🍐 Pêra</option>
+                <option value="🍊">🍊 Mexerica / Laranja</option>
+                <option value="🍋">🍋 Limão Siciliano</option>
+                <option value="🍌">🍌 Banana</option>
+                <option value="🍉">🍉 Melancia</option>
+                <option value="🍇">🍇 Uva</option>
+                <option value="🍓">🍓 Morango</option>
+                <option value="🫐">🫐 Mirtilo / Mirtilos</option>
+                <option value="🍈">🍈 Melão</option>
+                <option value="🍒">🍒 Cereja</option>
+                <option value="🍑">🍑 Pêssego</option>
+                <option value="🥭">🥭 Manga</option>
+                <option value="🍍">🍍 Abacaxi</option>
+                <option value="🥥">🥥 Coco</option>
+                <option value="🥝">🥝 Kiwi</option>
+                <option value="🍅">🍅 Tomate</option>
+                <option value="🥑">🥑 Abacate</option>
+                <option value="🫒">🫒 Oliveira</option>
+                <option value="🥬">🥬 Folhosas</option>
+                <option value="🥦">🥦 Brócolis</option>
+                <option value="🥒">🥒 Pepino</option>
+                <option value="🌶️">🌶️ Pimenta</option>
+                <option value="🫑">🫑 Pimentão</option>
+                <option value="🌽">🌽 Milho</option>
+                <option value="🥕">🥕 Cenoura</option>
+                <option value="🧄">🧄 Alho</option>
+                <option value="🧅">🧅 Cebola</option>
+                <option value="🥔">🥔 Batata</option>
+                <option value="🍠">🍠 Batata-Doce</option>
+                <option value="🍆">🍆 Berinjela</option>
+                <option value="🫛">🫛 Ervilha / Vagem</option>
+                <option value="🫘">🫘 Feijão / Grãos</option>
+                <option value="🥜">🥜 Amendoim</option>
+                <option value="🌰">🌰 Castanha / Noz</option>
+              </select>
+              <small>Usado quando não houver foto de capa.</small>
+            </div>
 
-        <div class="form-group">
-          <label>Ícone da Espécie</label>
-          <select id="specieIcon" class="form-control">
-            <option value="🪴">🪴 Vaso</option>
-<option value="🌱">🌱 Broto / Mudinha</option>
-<option value="🌿">🌿 Folhagem</option>
-<option value="🌵">🌵 Cacto / Suculenta</option>
-<option value="🌴">🌴 Palmeira</option>
-<option value="🍀">🍀 Trevo de Quatro Folhas</option>
-<option value="☘️">☘️ Trevo</option>
-<option value="🍃">🍃 Folha ao Vento</option>
-<option value="🍂">🍂 Folha Seca</option>
-<option value="🍁">🍁 Folha de Outono</option>
-<option value="🌾">🌾 Capim / Trigo</option>
-<option value="🎋">🎋 Bambu</option>
-<option value="🍄">🍄 Cogumelo</option>
-<option value="🌸">🌸 Flor de Cerejeira</option>
-<option value="🌺">🌺 Hibisco</option>
-<option value="🌹">🌹 Rosa</option>
-<option value="🥀">🥀 Rosa Murcha</option>
-<option value="🌷">🌷 Tulipa</option>
-<option value="🌻">🌻 Girassol</option>
-<option value="🌼">🌼 Margarida</option>
-<option value="🪻">🪻 Lavanda</option>
-<option value="🪷">🪷 Flor de Lótus</option>
-<option value="💐">💐 Buquê de Flores</option>
-<option value="🌳">🌳 Árvore</option>
-<option value="🌲">🌲 Pinheiro</option>
-<option value="🪵">🪵 Madeira / Tronco</option>
-<option value="🍎">🍎 Maçã Vermelha</option>
-<option value="🍏">🍏 Maçã Verde</option>
-<option value="🍐">🍐 Pêra</option>
-<option value="🍊">🍊 Mexerica / Laranja</option>
-<option value="🍋">🍋 Limão Siciliano</option>
-<option value="🍌">🍌 Banana</option>
-<option value="🍉">🍉 Melancia</option>
-<option value="🍇">🍇 Uva</option>
-<option value="🍓">🍓 Morango</option>
-<option value="🫐">🫐 Mirtilo / Mirtilos</option>
-<option value="🍈">🍈 Melão</option>
-<option value="🍒">🍒 Cereja</option>
-<option value="🍑">🍑 Pêssego</option>
-<option value="🥭">🥭 Manga</option>
-<option value="🍍">🍍 Abacaxi</option>
-<option value="🥥">🥥 Coco</option>
-<option value="Kiwi">🥝 Kiwi</option>
-<option value="🍅">🍅 Tomate</option>
-<option value="🥑">🥑 Abacate</option>
-<option value="🫒">🫒 Oliveira</option>
-<option value="🥬">🥬 Folhosas</option>
-<option value="🥦">🥦 Brócolis</option>
-<option value="🥒">🥒 Pepino</option>
-<option value="🌶️">🌶️ Pimenta</option>
-<option value="🫑">🫑 Pimentão</option>
-<option value="🌽">🌽 Milho</option>
-<option value="🥕">🥕 Cenoura</option>
-<option value="🧄">🧄 Alho</option>
-<option value="🧅">🧅 Cebola</option>
-<option value="🥔">🥔 Batata</option>
-<option value="🍠">🍠 Batata-Doce</option>
-<option value="🍆">🍆 Berinjela</option>
-<option value="🫛">🫛 Ervilha / Vagem</option>
-<option value="🫘">🫘 Feijão / Grãos</option>
-<option value="🥜">🥜 Amendoim</option>
-<option value="🌰">🌰 Castanha / Noz</option>
-          </select>
-          <small style="color:var(--sage); font-size:0.72rem;">Usado quando não houver foto de capa.</small>
-        </div>
-
-        <div class="form-group">
-          <label>Foto de Capa (Opcional)</label>
-          <img id="speciePhotoPreview" class="photo-preview" />
-          <div class="photo-picker-row">
-            <label class="btn-secondary photo-picker-btn">
-              📁 Galeria
-              <input type="file" id="speciePhotoGallery" accept="image/*" style="display:none;" />
-            </label>
-            <label class="btn-primary photo-picker-btn" style="justify-content:center;">
-              📷 Tirar Foto
-              <input type="file" id="speciePhotoCamera" accept="image/*" capture="environment" style="display:none;" />
-            </label>
+            <div class="form-group">
+              <label>Foto de capa (opcional)</label>
+              <img id="speciePhotoPreview" class="photo-preview" alt="Prévia da capa" />
+              <div class="photo-picker-row">
+                <label class="btn btn-secondary photo-picker-btn">📁 Galeria<input type="file" id="speciePhotoGallery" accept="image/*" hidden /></label>
+                <label class="btn btn-primary photo-picker-btn">📷 Câmera<input type="file" id="speciePhotoCamera" accept="image/*" capture="environment" hidden /></label>
+              </div>
+            </div>
           </div>
-        </div>
 
-        <div class="form-section-title">📋 FICHA TÉCNICA DE CUIDADOS (CAMPOS INDIVIDUAIS)</div>
+          <div class="form-section-title">📋 FICHA TÉCNICA DE CUIDADOS</div>
 
-        <div class="form-group">
-          <label>Categoria</label>
-          <input type="text" id="fieldCategory" class="form-control" placeholder="Ex: Trepadeira / Folhosa" />
-        </div>
+          <div class="form-grid">
+            <div class="form-group"><label for="fieldCategory">Categoria</label><input type="text" id="fieldCategory" class="form-control" placeholder="Ex: Trepadeira / Folhosa" /></div>
+            <div class="form-group"><label for="fieldLight">Luz & sol direto</label><input type="text" id="fieldLight" class="form-control" placeholder="Ex: Luz indireta filtrada" /></div>
+            <div class="form-group"><label for="fieldWater">Necessidade de rega</label><input type="text" id="fieldWater" class="form-control" placeholder="Ex: Moderada (a cada 5 dias)" /></div>
+            <div class="form-group"><label for="specieWaterDays">Frequência de rega (dias)</label><input type="number" min="1" id="specieWaterDays" class="form-control" placeholder="5" /><small>Alimenta o medidor de rega dos vasos.</small></div>
+            <div class="form-group"><label for="fieldPruning">Tolerância a poda</label><input type="text" id="fieldPruning" class="form-control" placeholder="Ex: Regular / Baixa" /></div>
+            <div class="form-group"><label for="fieldHumidity">Umidade do ar</label><input type="text" id="fieldHumidity" class="form-control" placeholder="Ex: Alta umidade (>60%)" /></div>
+            <div class="form-group"><label for="fieldSoil">Tipo de solo</label><input type="text" id="fieldSoil" class="form-control" placeholder="Ex: Drenável e orgânico" /></div>
+            <div class="form-group"><label for="fieldFertilizer">Adubação comercial</label><input type="text" id="fieldFertilizer" class="form-control" placeholder="Ex: NPK 10-10-10 mensal" /></div>
+            <div class="form-group span-2"><label for="fieldNaturalFertilizer">Adubação natural</label><input type="text" id="fieldNaturalFertilizer" class="form-control" placeholder="Ex: Chá de casca de banana" /></div>
+            <div class="form-group span-2"><label for="fieldExtraTips">Dica extra</label><textarea id="fieldExtraTips" class="form-control" rows="2" placeholder="Ex: Limpar folhas com pano úmido"></textarea></div>
+            <div class="form-group span-2"><label for="fieldObservations">Observações & o que evitar</label><textarea id="fieldObservations" class="form-control" rows="2" placeholder="Ex: Evitar solo encharcado"></textarea></div>
+            <div class="form-group">
+              <label for="fieldPetToxicity">Toxicidade para pets</label>
+              <select id="fieldPetToxicity" class="form-control">
+                <option value="">Não informado</option>
+                <option value="Segura">🟢 Segura</option>
+                <option value="Tóxica">🟠 Tóxica (desconforto, sem risco de vida)</option>
+                <option value="Letal">🔴 Letal (risco de vida ao pet)</option>
+              </select>
+            </div>
+            <div class="form-group"><label for="fieldPetWarning">Detalhes da toxicidade</label><textarea id="fieldPetWarning" class="form-control" rows="2" placeholder="Ex: Causa irritação na boca e vômitos"></textarea></div>
+          </div>
 
-        <div class="form-group">
-          <label>Luz & Sol Direto</label>
-          <input type="text" id="fieldLight" class="form-control" placeholder="Ex: Luz Indireta Filtrada" />
-        </div>
-
-        <div class="form-group">
-          <label>Necessidade de Rega & Frequência</label>
-          <input type="text" id="fieldWater" class="form-control" placeholder="Ex: Moderada (Regar a cada 5 dias)" />
-        </div>
-
-        <div class="form-group">
-          <label>Frequência Recomendada em Dias</label>
-          <input type="number" id="specieWaterDays" class="form-control" placeholder="5" />
-        </div>
-
-        <div class="form-group">
-          <label>Tolerância a Poda</label>
-          <input type="text" id="fieldPruning" class="form-control" placeholder="Ex: Regular / Baixa" />
-        </div>
-
-        <div class="form-group">
-          <label>Umidade do Ar</label>
-          <input type="text" id="fieldHumidity" class="form-control" placeholder="Ex: Alta umidade (>60%)" />
-        </div>
-
-        <div class="form-group">
-          <label>Tipo de Solo</label>
-          <input type="text" id="fieldSoil" class="form-control" placeholder="Ex: Drenável e orgânico" />
-        </div>
-
-        <div class="form-group">
-          <label>Adubação Comercial</label>
-          <input type="text" id="fieldFertilizer" class="form-control" placeholder="Ex: NPK 10-10-10 mensal" />
-        </div>
-
-        <div class="form-group">
-          <label>Adubação Natural</label>
-          <input type="text" id="fieldNaturalFertilizer" class="form-control" placeholder="Ex: Chá de casca de banana" />
-        </div>
-
-        <div class="form-group">
-          <label>Dica Extra</label>
-
-          <textarea id="fieldExtraTips" class="form-control" rows="2" placeholder="Ex: Limpar folhas com pano úmido"></textarea>
-        </div>
-
-        <div class="form-group">
-          <label>Observações & O que Evitar</label>
-          <textarea id="fieldObservations" class="form-control" rows="2" placeholder="Ex: Evitar solo encharcado"></textarea>
-        </div>
-
-        <div class="form-group">
-          <label>Toxicidade para Pets</label>
-          <select id="fieldPetToxicity" class="form-control">
-            <option value="">Não informado</option>
-            <option value="Segura">🟢 Segura</option>
-            <option value="Tóxica">🟠 Tóxica (causa desconforto, sem risco de vida)</option>
-            <option value="Letal">🔴 Letal (risco de vida ao pet)</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>Detalhes sobre a Toxicidade (Opcional)</label>
-          <textarea id="fieldPetWarning" class="form-control" rows="2" placeholder="Ex: Causa irritação na boca e vômitos se ingerida"></textarea>
-        </div>
-
-        <button type="submit" id="btnSaveSpecies" class="btn-primary" style="width: 100%; justify-content: center; margin-top:1rem;">
-          Salvar Espécie
-        </button>
-      </form>
+          <button type="submit" id="btnSaveSpecies" class="btn btn-primary" style="width:100%; padding:1rem; margin-top:.6rem;">Salvar espécie</button>
+        </form>
+      </div>
     </div>
   </div>
 
+  <!-- ============ DRAWER: VASO ============ -->
   <div class="modal-overlay" id="drawerAddVase">
-    <div class="drawer">
+    <div class="drawer" role="dialog" aria-modal="true" aria-labelledby="vaseModalTitle">
+      <div class="drawer-handle"></div>
       <div class="drawer-header">
-        <h3 id="vaseModalTitle" style="font-family: 'Playfair Display', serif; color: var(--moss);">Cadastrar Novo Vaso</h3>
-        <button class="btn-close" onclick="closeActiveDrawer()">&times;</button>
+        <h3 id="vaseModalTitle">Cadastrar novo vaso</h3>
+        <button class="btn-close" onclick="closeActiveDrawer()" aria-label="Fechar">&times;</button>
       </div>
+      <div class="drawer-inner">
+        <form id="formVase" onsubmit="saveVase(event)">
+          <input type="hidden" id="vaseEditId" />
 
-      <form id="formVase" onsubmit="saveVase(event)">
-        <input type="hidden" id="vaseEditId" />
-
-        <div class="form-group">
-          <label>Nome do Vaso / Identificação</label>
-          <input type="text" id="vaseName" class="form-control" placeholder="Ex: Vaso 1 da Sala, Vaso Pendente Varanda" required />
-        </div>
-
-        <div class="form-group">
-          <label>Ícone do Vaso</label>
-          <select id="vaseIcon" class="form-control">
-            <option value="🪴">🪴 Vaso</option>
-            <option value="🌱">🌱 Broto</option>
-            <option value="🌿">🌿 Folhagem</option>
-            <option value="🌵">🌵 Suculenta / Cacto</option>
-            <option value="🌴">🌴 Palmeira</option>
-            <option value="🍀">🍀 Trevo</option>
-            <option value="🌸">🌸 Flor</option>
-            <option value="🍂">🍂 Folha Seca</option>
-          </select>
-          <small style="color:var(--sage); font-size:0.72rem;">Usado quando não houver foto do vaso.</small>
-        </div>
-
-        <div class="form-group">
-          <label>Foto do Vaso</label>
-          <img id="vasePhotoPreview" class="photo-preview" />
-          <div class="photo-picker-row">
-            <label class="btn-secondary photo-picker-btn">
-              📁 Galeria
-              <input type="file" id="vasePhotoGallery" accept="image/*" style="display:none;" />
-            </label>
-            <label class="btn-primary photo-picker-btn" style="justify-content:center;">
-              📷 Tirar Foto
-              <input type="file" id="vasePhotoCamera" accept="image/*" capture="environment" style="display:none;" />
-            </label>
+          <div class="form-group">
+            <label for="vaseName">Nome do vaso / identificação</label>
+            <input type="text" id="vaseName" class="form-control" placeholder="Ex: Vaso 1 da sala, Pendente da varanda" required />
           </div>
-        </div>
 
-        <div class="form-group">
-          <label>Data do Último Transbordo / Transplante</label>
-          <input type="date" id="vaseRepotDate" class="form-control" />
-        </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="vaseIcon">Ícone do vaso</label>
+              <select id="vaseIcon" class="form-control">
+                <option value="🪴">🪴 Vaso</option>
+                <option value="🌱">🌱 Broto</option>
+                <option value="🌿">🌿 Folhagem</option>
+                <option value="🌵">🌵 Suculenta / Cacto</option>
+                <option value="🌴">🌴 Palmeira</option>
+                <option value="🍀">🍀 Trevo</option>
+                <option value="🌸">🌸 Flor</option>
+                <option value="🍂">🍂 Folha seca</option>
+              </select>
+              <small>Usado quando não houver foto.</small>
+            </div>
+            <div class="form-group">
+              <label for="vaseRepotDate">Último transbordo / transplante</label>
+              <input type="date" id="vaseRepotDate" class="form-control" />
+            </div>
+            <div class="form-group span-2">
+              <label for="vaseSize">Tamanho / material do vaso</label>
+              <input type="text" id="vaseSize" class="form-control" placeholder="Ex: Auto-irrigável 25cm / Barro 5L" />
+            </div>
+          </div>
 
-        <div class="form-group">
-          <label>Tamanho / Material do Vaso</label>
-          <input type="text" id="vaseSize" class="form-control" placeholder="Ex: Auto-irrigável 25cm / Barro 5L" />
-        </div>
+          <div class="form-group">
+            <label>Foto do vaso</label>
+            <img id="vasePhotoPreview" class="photo-preview" alt="Prévia da foto do vaso" />
+            <div class="photo-picker-row">
+              <label class="btn btn-secondary photo-picker-btn">📁 Galeria<input type="file" id="vasePhotoGallery" accept="image/*" hidden /></label>
+              <label class="btn btn-primary photo-picker-btn">📷 Câmera<input type="file" id="vasePhotoCamera" accept="image/*" capture="environment" hidden /></label>
+            </div>
+            <small>Cada foto nova entra na galeria de evolução do vaso.</small>
+          </div>
 
-        <button type="submit" id="btnSaveVase" class="btn-primary" style="width: 100%; justify-content: center;">
-          Salvar Vaso
-        </button>
-      </form>
+          <button type="submit" id="btnSaveVase" class="btn btn-primary" style="width:100%; padding:1rem;">Salvar vaso</button>
+        </form>
+      </div>
     </div>
   </div>
 
+  <!-- ============ DRAWER: REGISTRO DE CUIDADO ============ -->
   <div class="modal-overlay" id="drawerCareLog">
-    <div class="drawer">
+    <div class="drawer" role="dialog" aria-modal="true" aria-labelledby="careLogTitle">
+      <div class="drawer-handle"></div>
       <div class="drawer-header">
-        <h3 style="font-family: 'Playfair Display', serif; color: var(--moss);">Registrar Cuidado / Lembrete</h3>
-        <button class="btn-close" onclick="closeActiveDrawer()">&times;</button>
+        <h3 id="careLogTitle">Registrar cuidado / lembrete</h3>
+        <button class="btn-close" onclick="closeActiveDrawer()" aria-label="Fechar">&times;</button>
       </div>
-
-      <form id="formCareLog" onsubmit="saveCareLog(event)">
-        <input type="hidden" id="logVaseId" />
-
-        <div class="form-group">
-          <label>Tipo de Ação</label>
-          <select id="logActionType" class="form-control" required>
-            <option value="lastWater">💧 Rega</option>
-            <option value="lastFertilizer">🧪 Adubação</option>
-            <option value="lastPruning">✂️ Poda</option>
-            <option value="lastRepot">🪴 Transbordo / Transplante</option>
-            <option value="lembrete">⏰ Agendar Lembrete Futuro</option>
-            <option value="nota">📝 Nota / Observação</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>Data e Hora do Registro (Permite Data Retroativa/Futura)</label>
-          <input type="datetime-local" id="logDate" class="form-control" required />
-        </div>
-
-        <div class="form-group">
-          <label>Observação / Detalhes</label>
-          <textarea id="logNotes" class="form-control" rows="3" placeholder="Ex: Regado com água de chuva, usado NPK 10-10-10..."></textarea>
-        </div>
-
-        <button type="submit" id="btnSaveLog" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 1rem;">
-          Salvar Registro
-        </button>
-      </form>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="drawerVaseDetail">
-    <div class="drawer">
-      <div class="drawer-header">
-        <h3 id="vaseDetailName" style="font-family: 'Playfair Display', serif; color: var(--moss);">Detalhes do Vaso</h3>
-        <button class="btn-close" onclick="closeActiveDrawer()">&times;</button>
-      </div>
-
-      <img id="vaseDetailPhoto" class="vase-img" style="height:220px;" />
-      <div id="vaseDetailPhotoPlaceholder" class="vase-img" style="height:220px; display:none; align-items:center; justify-content:center; color:#aaa; font-size:2.4rem;">🌱</div>
-
-      <div>
-        <h4 style="color: var(--moss); margin-bottom: 0.6rem; font-family: 'Playfair Display', serif;">📊 Frequência de Cuidados</h4>
-        <div id="vaseDetailStats" style="background: var(--cream); padding: 1rem; border-radius: 10px; font-size: 0.85rem;"></div>
-      </div>
-
-      <div>
-        <h4 style="color: var(--moss); margin-bottom: 0.6rem; font-family: 'Playfair Display', serif;">📜 Histórico Cronológico de Cuidados</h4>
-        <div id="vaseDetailHistory" class="timeline"></div>
-      </div>
-
-      <div>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
-          <h4 style="color: var(--moss); font-family: 'Playfair Display', serif;">📸 Galeria de Evolução</h4>
-          <div style="display:flex; gap:0.4rem;">
-            <label class="btn-secondary" style="cursor:pointer; font-size:0.78rem;">
-              📁 Galeria
-              <input type="file" accept="image/*" style="display:none;" onchange="addGalleryPhoto(event)" />
-            </label>
-            <label class="btn-secondary" style="cursor:pointer; font-size:0.78rem; background:var(--terra);">
-              📷 Câmera
-              <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="addGalleryPhoto(event)" />
-            </label>
+      <div class="drawer-inner">
+        <form id="formCareLog" onsubmit="saveCareLog(event)">
+          <input type="hidden" id="logVaseId" />
+          <div class="form-group">
+            <label for="logActionType">Tipo de ação</label>
+            <select id="logActionType" class="form-control" required>
+              <option value="lastWater">💧 Rega</option>
+              <option value="lastFertilizer">🧪 Adubação</option>
+              <option value="lastPruning">✂️ Poda</option>
+              <option value="lastRepot">🪴 Transbordo / transplante</option>
+              <option value="lembrete">⏰ Agendar lembrete futuro</option>
+              <option value="nota">📝 Nota / observação</option>
+            </select>
           </div>
-        </div>
-        <div id="vaseDetailGallery" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:0.6rem;"></div>
+          <div class="form-group">
+            <label for="logDate">Data e hora (aceita data passada ou futura)</label>
+            <input type="datetime-local" id="logDate" class="form-control" required />
+          </div>
+          <div class="form-group">
+            <label for="logNotes">Observação / detalhes</label>
+            <textarea id="logNotes" class="form-control" rows="3" placeholder="Ex: Regado com água de chuva, NPK 10-10-10…"></textarea>
+          </div>
+          <button type="submit" id="btnSaveLog" class="btn btn-primary" style="width:100%; padding:1rem;">Salvar registro</button>
+        </form>
       </div>
     </div>
   </div>
+
+  <!-- ============ DRAWER: DETALHE DO VASO + GALERIA ============ -->
+  <div class="modal-overlay" id="drawerVaseDetail">
+    <div class="drawer wide" role="dialog" aria-modal="true" aria-labelledby="vaseDetailName">
+      <div class="drawer-handle"></div>
+      <div class="drawer-header">
+        <h3 id="vaseDetailName">Detalhes do vaso</h3>
+        <button class="btn-close" onclick="closeActiveDrawer()" aria-label="Fechar">&times;</button>
+      </div>
+      <div class="drawer-inner">
+        <button class="vase-hero" id="vaseDetailHero" onclick="openLightboxLatest()" aria-label="Ampliar foto"></button>
+
+        <div>
+          <div class="sec-title"><h4>📸 Galeria de evolução</h4>
+            <div style="display:flex; gap:.4rem; flex-wrap:wrap;">
+              <button class="btn btn-ghost" id="btnPlayEvolution" onclick="openLightboxEvolution()">▶ Ver evolução</button>
+              <label class="btn btn-secondary">📁 Galeria<input type="file" accept="image/*" hidden onchange="addGalleryPhoto(event)" /></label>
+              <label class="btn btn-primary">📷 Câmera<input type="file" accept="image/*" capture="environment" hidden onchange="addGalleryPhoto(event)" /></label>
+            </div>
+          </div>
+          <div class="gallery-meter" id="galleryMeter"><i></i></div>
+          <div class="gallery-note" id="galleryNote"></div>
+          <div class="gallery-grid" id="vaseDetailGallery"></div>
+        </div>
+
+        <div>
+          <div class="sec-title"><h4>📊 Frequência de cuidados</h4></div>
+          <div class="stats-grid" id="vaseDetailStats"></div>
+        </div>
+
+        <div>
+          <div class="sec-title"><h4>📜 Histórico de cuidados</h4></div>
+          <div id="vaseDetailHistory" class="timeline"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ LIGHTBOX / CARROSSEL DE EVOLUÇÃO ============ -->
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Galeria de evolução">
+    <div class="lb-bg" id="lbBg"></div>
+    <div class="lb-top">
+      <div class="lb-title"><strong id="lbVase"></strong><span id="lbCounter"></span></div>
+      <div class="lb-actions">
+        <button class="lb-btn" id="lbPlay" onclick="lbTogglePlay()" aria-label="Reproduzir evolução" title="Reproduzir evolução (espaço)">▶</button>
+        <button class="lb-btn" id="lbZoom" onclick="lbToggleZoom()" aria-label="Zoom" title="Zoom (toque duplo)">🔍</button>
+        <a class="lb-btn" id="lbDownload" aria-label="Baixar foto" title="Baixar foto" download="planta.jpg" style="text-decoration:none; color:inherit;">⬇</a>
+        <button class="lb-btn danger" onclick="lbDelete()" aria-label="Excluir foto" title="Excluir foto">🗑</button>
+        <button class="lb-btn" onclick="closeLightbox()" aria-label="Fechar" title="Fechar (Esc)">✕</button>
+      </div>
+    </div>
+    <div class="lb-stage" id="lbStage">
+      <button class="lb-btn lb-nav prev" id="lbPrev" onclick="lbPrev()" aria-label="Foto anterior">‹</button>
+      <img class="lb-img" id="lbImg" alt="Foto da planta" draggable="false" />
+      <button class="lb-btn lb-nav next" id="lbNext" onclick="lbNext()" aria-label="Próxima foto">›</button>
+    </div>
+    <div class="lb-bottom">
+      <div class="lb-caption"><span id="lbDate"></span><span class="chipd" id="lbChip"></span></div>
+      <div class="lb-progress"><i id="lbProgress"></i></div>
+      <div class="lb-thumbs" id="lbThumbs"></div>
+    </div>
+  </div>
+
+  <!-- ============ CONFIRMAÇÃO / AVISOS ============ -->
+  <div class="confirm-overlay" id="confirmOverlay">
+    <div class="confirm-box" role="alertdialog" aria-modal="true" aria-labelledby="confirmMsg">
+      <div class="c-ico" id="confirmIco">🌿</div>
+      <p id="confirmMsg"></p>
+      <div class="row">
+        <button class="btn btn-secondary" id="confirmCancel">Cancelar</button>
+        <button class="btn btn-primary" id="confirmOk">Confirmar</button>
+      </div>
+    </div>
+  </div>
+  <div class="toasts" id="toasts" aria-live="polite"></div>
 
   <script type="module" src="app.js"></script>
 </body>

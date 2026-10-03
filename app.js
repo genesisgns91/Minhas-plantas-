@@ -7,7 +7,7 @@ if ('serviceWorker' in navigator) {
 
 // ==================== FIREBASE ====================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 // CONFIGURAÇÃO DO SEU FIREBASE
 const firebaseConfig = {
@@ -36,7 +36,6 @@ const WORKER_URLS = [
 ];
 
 // Lembra qual Worker funcionou por último, para já começar por ela na próxima vez
-// (evita insistir sempre na que já sabemos que está sem cota).
 const WORKER_INDEX_KEY = 'minhasplantas_worker_index';
 let currentWorkerIndex = 0;
 try {
@@ -50,19 +49,13 @@ function saveWorkerIndex() {
   try { localStorage.setItem(WORKER_INDEX_KEY, String(currentWorkerIndex)); } catch (e) { /* ignora */ }
 }
 
-// Erros de validação do próprio pedido (ex: campo obrigatório faltando) não têm por quê
-// serem tentados de novo em outra conta — o erro se repetiria em todas. Qualquer outro
-// status (cota estourada, chave não configurada, erro interno, etc.) ou falha de rede
-// dispara a tentativa na próxima Worker da lista.
+// Erros de validação do próprio pedido (400) não adiantam tentar em outra conta.
 function shouldTryNextWorker(status) {
   return status !== 400;
 }
 
-// Faz a chamada tentando cada Worker em sequência, começando pela última que funcionou.
-// `path` é a rota (ex: 'auto-fill-plant'), `options` são as opções do fetch (method, body...).
 async function fetchFromWorkers(path, options) {
   let lastResponse = null;
-  let lastError = null;
 
   for (let attempt = 0; attempt < WORKER_URLS.length; attempt++) {
     const index = (currentWorkerIndex + attempt) % WORKER_URLS.length;
@@ -80,42 +73,215 @@ async function fetchFromWorkers(path, options) {
       }
 
       lastResponse = response;
-      if (!shouldTryNextWorker(response.status)) {
-        return response; // erro do próprio pedido, não adianta tentar outra conta
-      }
+      if (!shouldTryNextWorker(response.status)) return response;
       console.warn(`Worker ${url} respondeu status ${response.status}, tentando a próxima conta...`);
     } catch (err) {
-      lastError = err;
       console.warn(`Worker ${url} falhou (${err.message}), tentando a próxima conta...`);
     }
   }
 
-  // Todas as Workers falharam
   if (lastResponse) return lastResponse;
   throw new Error('Não foi possível conectar a nenhuma das contas de IA disponíveis. Tente novamente mais tarde.');
 }
 
+// ==================== ESTADO ====================
 let allSpecies = [];
 let allVases = [];
+let speciesLoaded = false;
+let vasesLoaded = false;
+let loadError = '';
 let currentSelectedSpecies = null;
 let currentDetailVaseId = null;
 let activeDrawerId = null;
 let searchTerm = '';
+let filterMode = 'all'; // all | thirsty | safe
 
-// Imagens já processadas (comprimidas + em base64), prontas para salvar no Firestore
-// ou enviar para o Worker. Guardadas fora dos inputs, já que dois inputs distintos
-// (galeria e câmera) alimentam a mesma foto.
+// Imagens já processadas (comprimidas + base64), prontas para salvar ou enviar ao Worker.
 let speciePhotoData = null;
 let vasePhotoData = null;
 let aiImageData = null;
 
+// ==================== UTILITÁRIOS ====================
+const $ = (id) => document.getElementById(id);
+const DAY_MS = 86400000;
+const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// Escapa texto digitado pelo usuário/IA antes de inserir em innerHTML (evita quebrar o layout ou injetar HTML)
+function esc(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+
+function startOfDay(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
+function daysBetween(a, b) { return Math.round((startOfDay(b) - startOfDay(a)) / DAY_MS); }
+function fmtDate(iso, fallback = '—') {
+  if (!iso) return fallback;
+  const d = new Date(iso);
+  return isNaN(d) ? fallback : d.toLocaleDateString('pt-BR');
+}
+function plural(n, one, many) { return `${n} ${n === 1 ? one : many}`; }
+
+// ---------- Avisos (toasts) e confirmação ----------
+function toast(message, type = 'ok', ms = 3200) {
+  const box = $('toasts');
+  const el = document.createElement('div');
+  el.className = `toast ${type === 'error' ? 'error' : ''}`;
+  el.setAttribute('role', type === 'error' ? 'alert' : 'status');
+  el.textContent = message;
+  box.appendChild(el);
+  setTimeout(() => {
+    el.classList.add('out');
+    setTimeout(() => el.remove(), 320);
+  }, type === 'error' ? Math.max(ms, 5000) : ms);
+}
+
+function friendlyError(err) {
+  const msg = (err && err.message) ? err.message : String(err);
+  if (/exceeds the maximum allowed size|too large|1048576|maximum.*size/i.test(msg)) {
+    return 'Este vaso atingiu o limite de armazenamento de fotos. Exclua fotos antigas da galeria para adicionar novas.';
+  }
+  if (/permission|insufficient/i.test(msg)) {
+    return 'Sem permissão no banco de dados (verifique as regras do Firestore).';
+  }
+  return msg;
+}
+
+function askConfirm(message, { icon = '🌿', okLabel = 'Confirmar', danger = false } = {}) {
+  return new Promise(resolve => {
+    const overlay = $('confirmOverlay');
+    const ok = $('confirmOk');
+    const cancel = $('confirmCancel');
+    $('confirmMsg').textContent = message;
+    $('confirmIco').textContent = icon;
+    ok.textContent = okLabel;
+    overlay.classList.add('open');
+    ok.focus();
+
+    const finish = (value) => {
+      overlay.classList.remove('open');
+      ok.removeEventListener('click', onOk);
+      cancel.removeEventListener('click', onCancel);
+      overlay.removeEventListener('click', onBackdrop);
+      document.removeEventListener('keydown', onKey, true);
+      resolve(value);
+    };
+    const onOk = () => finish(true);
+    const onCancel = () => finish(false);
+    const onBackdrop = (e) => { if (e.target === overlay) finish(false); };
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.stopPropagation(); finish(false); }
+      if (e.key === 'Enter') { e.stopPropagation(); finish(true); }
+    };
+    ok.addEventListener('click', onOk);
+    cancel.addEventListener('click', onCancel);
+    overlay.addEventListener('click', onBackdrop);
+    document.addEventListener('keydown', onKey, true);
+  });
+}
+
+// ---------- Efeitos: ripple de pétala, gotas, brilhos, chuva de pétalas ----------
+document.addEventListener('pointerdown', (e) => {
+  const target = e.target.closest('.btn, .chip, .quick-btn, .fab');
+  if (!target || target.disabled || prefersReducedMotion) return;
+  const rect = target.getBoundingClientRect();
+  const span = document.createElement('span');
+  span.className = 'ripple';
+  span.style.left = (e.clientX - rect.left) + 'px';
+  span.style.top = (e.clientY - rect.top) + 'px';
+  target.appendChild(span);
+  setTimeout(() => span.remove(), 750);
+});
+
+const rand = (min, max) => min + Math.random() * (max - min);
+
+function spawnFx(className, text, x, y, dx, dy, dur, rot = 0) {
+  const el = document.createElement('span');
+  el.className = `fx ${className}`;
+  if (text) el.textContent = text;
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+  el.style.setProperty('--dx', dx + 'px');
+  el.style.setProperty('--dy', dy + 'px');
+  el.style.setProperty('--rot', rot + 'deg');
+  el.style.setProperty('--dur', dur + 's');
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), dur * 1000 + 100);
+}
+
+function burst(sourceEl, kind) {
+  if (prefersReducedMotion || !sourceEl) return;
+  const r = sourceEl.getBoundingClientRect();
+  const cx = r.left + r.width / 2;
+  const cy = r.top + r.height / 2;
+  if (kind === 'lastWater') {
+    for (let i = 0; i < 9; i++) spawnFx('drop', '', cx + rand(-18, 18), cy - 6, rand(-34, 34), rand(70, 130), rand(.7, 1.1));
+    return;
+  }
+  const sets = { lastFertilizer: ['✨', '🧪', '🌿'], lastPruning: ['🍃', '✂️', '🍃'], lastRepot: ['🌱', '🪴', '🌱'] };
+  const set = sets[kind] || ['✨'];
+  for (let i = 0; i < 7; i++) {
+    spawnFx('emoji', set[i % set.length], cx + rand(-14, 14), cy, rand(-60, 60), rand(-130, -60), rand(.9, 1.4), rand(-40, 40));
+  }
+}
+
+function petalRain(count = 28) {
+  if (prefersReducedMotion) return;
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('span');
+    el.className = 'fx petalfx' + (i % 4 === 0 ? ' leaf' : '');
+    el.style.left = rand(0, window.innerWidth) + 'px';
+    el.style.top = '-24px';
+    el.style.setProperty('--dx', rand(-140, 140) + 'px');
+    el.style.setProperty('--dy', (window.innerHeight + 60) + 'px');
+    el.style.setProperty('--rot', rand(180, 540) + 'deg');
+    el.style.setProperty('--dur', rand(1.8, 3) + 's');
+    el.style.animationDelay = rand(0, .5) + 's';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 3800);
+  }
+}
+
+// Pétalas e folhas flutuando no fundo
+(function initPetals() {
+  const wrap = $('petals');
+  if (!wrap || prefersReducedMotion) return;
+  for (let i = 0; i < 14; i++) {
+    const p = document.createElement('span');
+    p.className = 'petal' + (i % 3 === 0 ? ' leaf' : '');
+    p.style.left = rand(0, 100) + '%';
+    p.style.setProperty('--s', rand(12, 24) + 'px');
+    p.style.setProperty('--d', rand(22, 40) + 's');
+    p.style.setProperty('--delay', (-rand(0, 40)) + 's');
+    p.style.setProperty('--sway', rand(-70, 90) + 'px');
+    wrap.appendChild(p);
+  }
+})();
+
+// ---------- Dicas ----------
+const TIPS = [
+  'Regue pela manhã cedo ou no fim da tarde: a água evapora menos e as raízes aproveitam melhor.',
+  'Antes de regar, enfie o dedo 2 cm no substrato. Se ainda estiver úmido, espere mais um dia.',
+  'Folhas amareladas e moles costumam indicar excesso de água; folhas secas nas pontas, falta de umidade no ar.',
+  'Gire o vaso um quarto de volta toda semana para a planta crescer por igual em direção à luz.',
+  'Limpe as folhas com um pano úmido: elas respiram melhor e fazem mais fotossíntese.',
+  'Todo vaso precisa de furos de drenagem. Raízes encharcadas apodrecem rápido.',
+  'Registre fotos do mesmo ângulo todo mês: a galeria de evolução fica ainda mais bonita.',
+  'Troque o vaso quando as raízes aparecerem pelos furos de drenagem — o ideal é só um tamanho maior.',
+  'Água da chuva ou filtrada, em temperatura ambiente, evita choque térmico nas raízes.',
+  'Podar pontas secas estimula novos brotos e deixa a planta mais cheia.',
+  'Adubo demais queima raízes. Na dúvida, use metade da dose recomendada.',
+  'Plantas perto de ar-condicionado ou ventilador perdem umidade mais rápido. Observe-as com mais frequência.'
+];
+function dayOfYear() { const n = new Date(); return Math.floor((n - new Date(n.getFullYear(), 0, 0)) / DAY_MS); }
+function renderTips() {
+  const i = dayOfYear();
+  $('dailyTip').textContent = TIPS[i % TIPS.length];
+  $('dailyTipMain').textContent = TIPS[(i + 5) % TIPS.length];
+}
+renderTips();
+
 // ==================== COMPRESSÃO DE IMAGEM ====================
-// Fotos tiradas com a câmera do celular costumam vir em resolução muito maior
-// (vários MB) do que fotos escolhidas na galeria/compartilhadas. Isso estourava
-// o limite de 1MB por documento do Firestore e causava erro ao salvar. Agora,
-// TODA imagem (seja da galeria ou da câmera) passa por este redimensionamento/
-// compressão via canvas antes de virar base64, então o tamanho final é sempre
-// controlado, independente da origem.
+// Fotos de câmera chegam com vários MB e estouravam o limite de 1MB por documento do Firestore.
+// TODA imagem passa por redimensionamento/compressão via canvas antes de virar base64.
 function compressImage(file, { maxDim = 1280, initialQuality = 0.75, maxBytes = 700000 } = {}) {
   return new Promise((resolve, reject) => {
     if (!file.type || !file.type.startsWith('image/')) {
@@ -158,8 +324,8 @@ function compressImage(file, { maxDim = 1280, initialQuality = 0.75, maxBytes = 
 
         // Reduz a qualidade gradualmente até caber no tamanho máximo desejado
         let attempts = 0;
-        while (dataUrl.length > maxBytes * 1.37 && quality > 0.2 && attempts < 6) {
-          quality -= 0.15;
+        while (dataUrl.length > maxBytes * 1.37 && quality > 0.2 && attempts < 8) {
+          quality -= 0.1;
           dataUrl = canvas.toDataURL('image/jpeg', Math.max(quality, 0.2));
           attempts++;
         }
@@ -172,8 +338,12 @@ function compressImage(file, { maxDim = 1280, initialQuality = 0.75, maxBytes = 
   });
 }
 
-// Converte uma dataURL (base64) de volta para Blob, usado para enviar a foto
-// de diagnóstico por multipart/form-data ao Worker.
+// Fotos que entram na galeria de evolução ficam menores (~100–130 KB) para caber várias
+// no limite de 1 MB de um documento do Firestore.
+const GALLERY_OPTS = { maxDim: 1080, initialQuality: 0.72, maxBytes: 95000 };
+const DOC_LIMIT_BYTES = 1048576;
+const DOC_SAFE_BYTES = 980000;
+
 function dataURLToBlob(dataUrl) {
   const [header, base64] = dataUrl.split(',');
   const mimeMatch = header.match(/:(.*?);/);
@@ -184,53 +354,128 @@ function dataURLToBlob(dataUrl) {
   return new Blob([array], { type: mime });
 }
 
-// Liga um par de inputs (galeria + câmera) a um callback que recebe a imagem
-// já comprimida em base64, e atualiza um preview opcional.
-function wireImagePicker(galleryInputId, cameraInputId, previewId, onSelect) {
-  const galleryInput = document.getElementById(galleryInputId);
-  const cameraInput = document.getElementById(cameraInputId);
-  const preview = previewId ? document.getElementById(previewId) : null;
+// Liga um par de inputs (galeria + câmera) a um callback; devolve a função que processa um File
+function wireImagePicker(galleryInputId, cameraInputId, previewId, onSelect, options) {
+  const galleryInput = $(galleryInputId);
+  const cameraInput = $(cameraInputId);
+  const preview = previewId ? $(previewId) : null;
 
-  async function handle(e) {
-    const file = e.target.files[0];
-    e.target.value = ''; // permite selecionar o mesmo arquivo novamente depois
+  async function processFile(file) {
     if (!file) return;
-
     try {
-      const dataUrl = await compressImage(file);
+      const dataUrl = await compressImage(file, options);
       onSelect(dataUrl);
       if (preview) {
         preview.src = dataUrl;
         preview.style.display = 'block';
       }
     } catch (err) {
-      alert('Não foi possível usar essa imagem: ' + err.message);
+      toast('Não foi possível usar essa imagem: ' + err.message, 'error');
     }
+  }
+
+  async function handle(e) {
+    const file = e.target.files[0];
+    e.target.value = ''; // permite selecionar o mesmo arquivo novamente depois
+    await processFile(file);
   }
 
   galleryInput.addEventListener('change', handle);
   cameraInput.addEventListener('change', handle);
+  return processFile;
 }
 
-wireImagePicker('speciePhotoGallery', 'speciePhotoCamera', 'speciePhotoPreview', (dataUrl) => { speciePhotoData = dataUrl; });
-wireImagePicker('vasePhotoGallery', 'vasePhotoCamera', 'vasePhotoPreview', (dataUrl) => { vasePhotoData = dataUrl; });
-wireImagePicker('aiImageGallery', 'aiImageCamera', 'aiImagePreview', (dataUrl) => { aiImageData = dataUrl; });
+wireImagePicker('speciePhotoGallery', 'speciePhotoCamera', 'speciePhotoPreview', (d) => { speciePhotoData = d; });
+wireImagePicker('vasePhotoGallery', 'vasePhotoCamera', 'vasePhotoPreview', (d) => { vasePhotoData = d; }, GALLERY_OPTS);
+const processAiFile = wireImagePicker('aiImageGallery', 'aiImageCamera', 'aiImagePreview', (d) => { aiImageData = d; });
 
-// ==================== BUSCA / FILTRO ====================
+// Arrastar e soltar foto no diagnóstico
+(function initDropzone() {
+  const dz = $('aiDropzone');
+  if (!dz) return;
+  ['dragenter', 'dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('drag'); }));
+  ['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('drag'); }));
+  dz.addEventListener('drop', e => processAiFile(e.dataTransfer && e.dataTransfer.files[0]));
+})();
+
+// ==================== FOTOS / GALERIA DO VASO ====================
+// Fonte única das fotos de um vaso, em ordem cronológica (da mais antiga para a mais nova).
+// Vasos antigos (só com o campo `photo`) continuam funcionando.
+function vasePhotos(vase) {
+  const hist = (vase.photoHistory || [])
+    .filter(p => p && p.photo)
+    .map(p => ({ photo: p.photo, date: p.date, raw: p }));
+  hist.sort((a, b) => new Date(a.date) - new Date(b.date));
+  if (!hist.length && vase.photo) {
+    return [{ photo: vase.photo, date: vase.createdAt || new Date().toISOString(), legacy: true }];
+  }
+  return hist;
+}
+
+function vaseCover(vase) {
+  const photos = vasePhotos(vase);
+  return photos.length ? photos[photos.length - 1].photo : '';
+}
+
+function docBytes(vase) {
+  try {
+    const { firestoreId, ...rest } = vase;
+    return JSON.stringify(rest).length;
+  } catch (e) { return 0; }
+}
+
+// Monta o update que adiciona uma foto à galeria (migrando a foto antiga do campo `photo`, se existir)
+function buildPhotoAddPayload(vase, dataUrl) {
+  const now = new Date().toISOString();
+  const entries = [];
+  const hasHistory = (vase.photoHistory || []).some(p => p && p.photo);
+  if (!hasHistory && vase.photo) entries.push({ photo: vase.photo, date: vase.createdAt || now });
+  entries.push({ photo: dataUrl, date: now });
+  const payload = { photoHistory: arrayUnion(...entries) };
+  if (vase.photo) payload.photo = ''; // a capa passa a ser sempre a foto mais recente da galeria
+  return payload;
+}
+
+// ==================== BUSCA / FILTROS ====================
 window.applySpeciesSearch = function() {
-  searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
+  const input = $('searchInput');
+  searchTerm = input.value.trim().toLowerCase();
+  $('searchWrap').classList.toggle('has-text', !!input.value);
   renderSpeciesGrid();
 };
 
+window.clearSearch = function() {
+  $('searchInput').value = '';
+  applySpeciesSearch();
+  $('searchInput').focus();
+};
+
+window.setFilter = function(mode) {
+  filterMode = mode;
+  document.querySelectorAll('.chip[data-filter]').forEach(c => c.classList.toggle('active', c.dataset.filter === mode));
+  renderSpeciesGrid({ animate: true });
+};
+
+function vasesOf(sp) { return allVases.filter(v => v.speciesId === sp.firestoreId); }
+
 function speciesMatchesSearch(sp) {
   if (!searchTerm) return true;
-  const speciesVases = allVases.filter(v => v.speciesId === sp.firestoreId);
   const haystack = [
     sp.name, sp.scientific, sp.category, sp.light, sp.water, sp.pruning,
     sp.soil, sp.fertilizer, sp.naturalFertilizer,
-    ...speciesVases.map(v => v.name)
+    ...vasesOf(sp).map(v => v.name)
   ].filter(Boolean).join(' ').toLowerCase();
   return haystack.includes(searchTerm);
+}
+
+function speciesMatchesFilter(sp) {
+  if (filterMode === 'thirsty') return vasesOf(sp).some(v => needsWater(v, sp));
+  if (filterMode === 'safe') return sp.petToxicity === 'Segura';
+  return true;
+}
+
+function filteredSpecies() {
+  return allSpecies.filter(sp => speciesMatchesSearch(sp) && speciesMatchesFilter(sp));
 }
 
 function petToxicityIcon(level) {
@@ -240,327 +485,437 @@ function petToxicityIcon(level) {
   return '🐾';
 }
 
-// ESCUTAR FIREBASE EM TEMPO REAL
-onSnapshot(speciesCol, (snapshot) => {
-  allSpecies = snapshot.docs.map(d => ({ firestoreId: d.id, ...d.data() }));
+// ==================== STATUS DE REGA ====================
+function waterStatus(vase, species) {
+  const due = Math.max(1, Number(species && species.waterDays) || 5);
+  if (!vase.lastWater) {
+    return { state: 'never', pct: 0, title: 'Sem rega registrada', sub: 'Toque em Regar para começar', icon: '💧' };
+  }
+  const d = new Date(vase.lastWater);
+  const days = Math.max(0, daysBetween(d, new Date()));
+  const pct = Math.min(100, Math.round((days / due) * 100));
+  if (days === 0) return { state: 'fresh', pct, title: 'Regada hoje', sub: `próxima em ${plural(due, 'dia', 'dias')}`, icon: '💦' };
+  if (days < due) {
+    const left = due - days;
+    return { state: left === 1 ? 'soon' : 'ok', pct, title: `Regada há ${plural(days, 'dia', 'dias')}`, sub: left === 1 ? 'regar amanhã' : `próxima em ${left} dias`, icon: '💧' };
+  }
+  if (days === due) return { state: 'due', pct: 100, title: 'Hora de regar!', sub: `ciclo de ${plural(due, 'dia', 'dias')} completo`, icon: '🚿' };
+  return { state: 'late', pct: 100, title: `Atrasada ${plural(days - due, 'dia', 'dias')}`, sub: `última rega há ${days} dias`, icon: '⚠️' };
+}
+
+function needsWater(vase, species) {
+  const s = waterStatus(vase, species).state;
+  return s === 'due' || s === 'late';
+}
+
+function speciesOfVase(vase) { return allSpecies.find(s => s.firestoreId === vase.speciesId); }
+
+// ==================== FIREBASE EM TEMPO REAL ====================
+function onLoadError(err) {
+  console.error('Erro ao carregar dados do Firestore:', err);
+  loadError = friendlyError(err);
+  speciesLoaded = vasesLoaded = true;
+  toast('Não foi possível carregar seus dados: ' + loadError, 'error');
   renderSpeciesGrid();
+}
+
+onSnapshot(speciesCol, (snapshot) => {
+  const firstLoad = !speciesLoaded;
+  speciesLoaded = true;
+  loadError = '';
+  allSpecies = snapshot.docs.map(d => ({ firestoreId: d.id, ...d.data() }));
+  renderSpeciesGrid({ animate: firstLoad });
   updateDashboard();
   if (currentSelectedSpecies) {
     const updated = allSpecies.find(s => s.firestoreId === currentSelectedSpecies.firestoreId);
     if (updated) openSpeciesDetail(updated);
+    else leaveDetailUI(); // espécie foi excluída em outro dispositivo
   }
-});
+}, onLoadError);
 
 onSnapshot(vasesCol, (snapshot) => {
+  vasesLoaded = true;
   allVases = snapshot.docs.map(d => ({ firestoreId: d.id, ...d.data() }));
   renderSpeciesGrid();
   updateDashboard();
-  if (currentSelectedSpecies) {
-    renderVasesForSpecies(currentSelectedSpecies.firestoreId);
-  }
-  if (currentDetailVaseId) {
-    renderVaseDetail(currentDetailVaseId);
-  }
-});
+  if (currentSelectedSpecies) renderVasesForSpecies(currentSelectedSpecies.firestoreId);
+  if (currentDetailVaseId) renderVaseDetail(currentDetailVaseId);
+  lbRefreshData();
+}, onLoadError);
 
-// ATUALIZAR DASHBOARD (CONTADORES & LEMBRETES)
+// ==================== DASHBOARD ====================
+function relativeWhen(d) {
+  const now = new Date();
+  const diff = daysBetween(now, d);
+  const time = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  if (diff === 0) return `hoje ${time}`;
+  if (diff === 1) return `amanhã ${time}`;
+  if (diff === -1) return `ontem ${time}`;
+  if (diff > 1 && diff < 7) return `em ${diff} dias`;
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + time;
+}
+
 function updateDashboard() {
-  document.getElementById('statSpeciesCount').innerText = allSpecies.length;
-  document.getElementById('statPotsCount').innerText = allVases.length;
+  const now = new Date();
+  $('statSpeciesCount').textContent = allSpecies.length;
+  $('statPotsCount').textContent = allVases.length;
 
-  const todayStr = new Date().toISOString().split('T')[0];
   const wateredTodayPots = new Set();
-
-  const allReminders = [];
+  const reminders = [];
 
   allVases.forEach(vase => {
-    const history = vase.history || [];
-    history.forEach(h => {
-      if (h.type === 'lastWater' && h.date && h.date.startsWith(todayStr)) {
-        wateredTodayPots.add(vase.firestoreId);
-      }
-      if (h.type === 'lembrete' || new Date(h.date) >= new Date()) {
-        allReminders.push({ vaseName: vase.name, ...h });
-      }
+    (vase.history || []).forEach(h => {
+      const d = new Date(h.date);
+      if (isNaN(d)) return;
+      if (h.type === 'lastWater' && daysBetween(d, now) === 0 && d <= now) wateredTodayPots.add(vase.firestoreId);
+      const upcoming = d >= now;
+      const recentlyMissed = h.type === 'lembrete' && d < now && (now - d) < 7 * DAY_MS;
+      if (upcoming || recentlyMissed) reminders.push({ vaseName: vase.name, late: !upcoming, ...h, _d: d });
     });
   });
 
-  document.getElementById('statWateredToday').innerText = wateredTodayPots.size;
+  const need = allVases.filter(v => needsWater(v, speciesOfVase(v))).length;
+  $('statWateredToday').textContent = wateredTodayPots.size;
+  $('statNeedWater').textContent = need;
+  $('statNeedCard').classList.toggle('has-alert', need > 0);
 
-  const remindersList = document.getElementById('remindersList');
-  if (allReminders.length === 0) {
-    remindersList.innerHTML = '<p style="color:#888; font-size:0.85rem;">Nenhum lembrete próximo no momento.</p>';
+  // Hero
+  const hour = now.getHours();
+  const greet = hour < 5 ? 'Boa madrugada' : hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
+  $('heroGreeting').textContent = `${greet}! 🌿`;
+  $('heroDate').textContent = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+  $('heroSub').textContent = !speciesLoaded ? 'Carregando seu jardim…'
+    : allVases.length === 0 ? 'Cadastre sua primeira espécie e comece a acompanhar o seu jardim.'
+    : need > 0 ? `${plural(need, 'vaso precisa', 'vasos precisam')} de água hoje. 💧`
+    : 'Tudo em dia — suas plantas agradecem! 💚';
+
+  // Lembretes
+  const list = $('remindersList');
+  if (reminders.length === 0) {
+    list.innerHTML = '<p class="muted">Nenhum lembrete próximo. Agende um pelo botão “Registro retroativo / lembrete” de um vaso.</p>';
   } else {
-    remindersList.innerHTML = '';
-    allReminders
-      .sort((a,b) => new Date(a.date) - new Date(b.date))
-      .slice(0, 5)
-      .forEach(rem => {
-        const dateFormatted = new Date(rem.date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
-        const item = document.createElement('div');
-        item.className = 'reminder-item';
-        item.innerHTML = `
-          <div><b>${rem.vaseName}:</b> ${rem.notes || 'Lembrete agendado'}</div>
-          <span style="font-weight:700; color:var(--terra);">${dateFormatted}</span>
-        `;
-        remindersList.appendChild(item);
-      });
+    reminders.sort((a, b) => a._d - b._d);
+    list.innerHTML = reminders.slice(0, 6).map(r => `
+      <div class="reminder-item ${r.late ? 'late' : ''}">
+        <div><b>${esc(r.vaseName)}:</b> ${esc(r.notes || 'Lembrete agendado')}</div>
+        <span class="reminder-when">${r.late ? '⚠ atrasado · ' : ''}${esc(relativeWhen(r._d))}</span>
+      </div>`).join('');
   }
 }
 
-// RENDERIZAR CARDS DAS ESPÉCIES NA HOME
-function renderSpeciesGrid() {
-  const container = document.getElementById('speciesGrid');
-  container.innerHTML = '';
+// ==================== RENDER: ESPÉCIES ====================
+function emptyPlantSvg() {
+  return `<svg viewBox="0 0 160 140" aria-hidden="true">
+    <ellipse cx="80" cy="128" rx="46" ry="7" fill="#dbe4d8"/>
+    <path d="M52 92h56l-7 34H59z" fill="#c16e41"/><rect x="48" y="86" width="64" height="12" rx="6" fill="#d98557"/>
+    <path d="M80 86V50" stroke="#5f8b57" stroke-width="4" stroke-linecap="round"/>
+    <path d="M80 62C62 62 50 50 50 32c18 0 30 10 30 30z" fill="#8fcf80"><animateTransform attributeName="transform" type="rotate" values="-4 80 62;4 80 62;-4 80 62" dur="4s" repeatCount="indefinite"/></path>
+    <path d="M80 54c0-18 12-30 30-30 0 18-12 30-30 30z" fill="#6b8e63"><animateTransform attributeName="transform" type="rotate" values="4 80 54;-4 80 54;4 80 54" dur="4.4s" repeatCount="indefinite"/></path>
+    <circle cx="112" cy="24" r="6" fill="#e9a8b5"/>
+  </svg>`;
+}
+
+function renderSpeciesGrid({ animate = false } = {}) {
+  const container = $('speciesGrid');
+
+  if (!speciesLoaded) return; // mantém o esqueleto de carregamento
+
+  if (loadError) {
+    container.innerHTML = `<div class="empty-state">${emptyPlantSvg()}<h4>Não foi possível carregar</h4><p>${esc(loadError)}</p></div>`;
+    $('speciesCountChip').textContent = '0';
+    return;
+  }
 
   if (allSpecies.length === 0) {
-    container.innerHTML = '<p style="color:#666;">Nenhuma espécie cadastrada ainda.</p>';
+    container.innerHTML = `<div class="empty-state">${emptyPlantSvg()}<h4>Seu jardim está vazio</h4><p>Cadastre a primeira espécie para começar a acompanhar rega, adubação e evolução.</p><button class="btn btn-primary" onclick="openAddSpeciesModal()">+ Cadastrar primeira espécie</button></div>`;
+    $('speciesCountChip').textContent = '0';
     return;
   }
 
-  const filteredSpecies = allSpecies.filter(speciesMatchesSearch);
+  const list = filteredSpecies();
+  $('speciesCountChip').textContent = list.length;
 
-  if (filteredSpecies.length === 0) {
-    container.innerHTML = '<p style="color:#666;">Nenhum resultado encontrado para essa busca.</p>';
+  if (list.length === 0) {
+    const msg = filterMode === 'thirsty' && !searchTerm ? 'Nenhuma planta precisa de água agora. 🎉' : 'Nenhum resultado para essa busca.';
+    container.innerHTML = `<div class="empty-state">${emptyPlantSvg()}<h4>${msg}</h4></div>`;
     return;
   }
 
-  filteredSpecies.forEach(sp => {
-    const countVases = allVases.filter(v => v.speciesId === sp.firestoreId).length;
+  container.innerHTML = '';
+  list.forEach((sp, i) => {
+    const vs = vasesOf(sp);
+    const thirsty = vs.filter(v => needsWater(v, sp)).length;
 
     const card = document.createElement('div');
-    card.className = 'species-card';
-    card.onclick = () => openSpeciesDetail(sp);
+    card.className = 'species-card' + (animate ? ' enter' : '');
+    card.style.setProperty('--i', Math.min(i, 14));
+    card.tabIndex = 0;
+    card.setAttribute('role', 'button');
+    card.setAttribute('aria-label', `Abrir ${sp.name}`);
+    card.onclick = () => openSpeciesDetail(sp, { fromUser: true });
+    card.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openSpeciesDetail(sp, { fromUser: true }); } };
 
-    const coverHtml = sp.photo
-      ? `<img src="${sp.photo}" class="species-card-cover" />`
-      : `<div class="species-card-cover-icon">${sp.icon || '🪴'}</div>`;
+    const media = sp.photo
+      ? `<img src="${esc(sp.photo)}" class="species-card-cover" alt="" loading="lazy" decoding="async" />`
+      : `<div class="species-card-cover-icon">${esc(sp.icon || '🪴')}</div>`;
+
+    const badges = [];
+    if (thirsty > 0) badges.push(`<span class="pill late">💧 ${plural(thirsty, 'precisa', 'precisam')} de rega</span>`);
+    if (sp.petToxicity) badges.push(`<span class="pill">${petToxicityIcon(sp.petToxicity)} Pets: ${esc(sp.petToxicity)}</span>`);
 
     card.innerHTML = `
-      <div class="species-card-actions">
-        <button class="btn-icon edit-icon" onclick="event.stopPropagation(); editSpecies('${sp.firestoreId}')" title="Editar">✏️</button>
-        <button class="btn-icon" onclick="event.stopPropagation(); deleteSpecies('${sp.firestoreId}')" title="Excluir">&times;</button>
-      </div>
-      ${coverHtml}
-      <div class="species-card-body">
-        <h3 style="font-family:'Playfair Display', serif; color:var(--ink);">${sp.name}</h3>
-        <p style="font-size:0.8rem; color:var(--sage);">${sp.scientific || ''}</p>
-        <div style="margin-top:1rem; font-size:0.85rem; font-weight:700; color:var(--terra);">
-          🪴 ${countVases} ${countVases === 1 ? 'Vaso cadastrado' : 'Vasos cadastrados'}
+      <div class="species-card-media">
+        ${media}
+        <div class="species-card-actions">
+          <button class="btn-icon" onclick="event.stopPropagation(); editSpecies('${sp.firestoreId}')" title="Editar" aria-label="Editar ${esc(sp.name)}">✏️</button>
+          <button class="btn-icon danger" onclick="event.stopPropagation(); deleteSpecies('${sp.firestoreId}')" title="Excluir" aria-label="Excluir ${esc(sp.name)}">🗑</button>
         </div>
+        ${badges.length ? `<div class="species-card-badges">${badges.join('')}</div>` : ''}
       </div>
-    `;
+      <div class="species-card-body">
+        <h3>${esc(sp.name)}</h3>
+        <p class="sci">${esc(sp.scientific || '')}</p>
+        <div class="species-card-foot">
+          <span>🪴 ${plural(vs.length, 'vaso', 'vasos')}</span>
+          <span class="go" aria-hidden="true">→</span>
+        </div>
+      </div>`;
     container.appendChild(card);
   });
 }
 
-// ABRIR DETALHES DE UMA ESPÉCIE & SEUS VASOS
-window.openSpeciesDetail = function(species) {
+// ==================== VIEWS / NAVEGAÇÃO ====================
+const VIEWS = ['sec-species', 'sec-species-detail', 'sec-ai'];
+function showView(id) {
+  const wasActive = $(id).classList.contains('is-active');
+  VIEWS.forEach(v => $(v).classList.toggle('is-active', v === id));
+  if (!wasActive) window.scrollTo({ top: 0, behavior: 'auto' });
+}
+
+function leaveDetailUI() {
+  currentSelectedSpecies = null;
+  showView('sec-species');
+  renderSpeciesGrid({ animate: true });
+}
+
+window.switchTab = function(tab) {
+  currentSelectedSpecies = null;
+  if (history.state && history.state.v === 'detail') history.replaceState(null, '');
+  showView(tab === 'ai' ? 'sec-ai' : 'sec-species');
+  document.querySelectorAll('.nav-btn[data-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+};
+
+window.toggleSidebar = function() {
+  const collapsed = document.body.classList.toggle('sidebar-collapsed');
+  try { localStorage.setItem('minhasplantas_sidebar', collapsed ? '1' : '0'); } catch (e) { /* ignora */ }
+};
+try {
+  if (localStorage.getItem('minhasplantas_sidebar') === '1') document.body.classList.add('sidebar-collapsed');
+} catch (e) { /* ignora */ }
+
+window.addEventListener('popstate', () => {
+  if (lb.open) closeLightbox(true);
+  const v = history.state && history.state.v;
+  if (currentSelectedSpecies && v !== 'detail' && v !== 'lightbox') leaveDetailUI();
+});
+
+// ==================== DETALHE DA ESPÉCIE ====================
+window.openSpeciesDetail = function(species, { fromUser = false } = {}) {
+  const firstOpen = !currentSelectedSpecies || currentSelectedSpecies.firestoreId !== species.firestoreId;
   currentSelectedSpecies = species;
-  document.getElementById('sec-species').style.display = 'none';
-  document.getElementById('sec-species-detail').style.display = 'block';
+  if (fromUser && !(history.state && history.state.v === 'detail')) history.pushState({ v: 'detail' }, '');
+  showView('sec-species-detail');
 
-  document.getElementById('detailSpeciesName').innerText = species.name;
-  document.getElementById('detailSpeciesNameVases').innerText = species.name;
-  document.getElementById('detailSpeciesScientific').innerText = species.scientific || '';
+  $('detailSpeciesName').textContent = species.name;
+  $('breadcrumbName').textContent = species.name;
+  $('detailSpeciesNameVases').textContent = species.name;
+  $('detailSpeciesScientific').textContent = species.scientific || '';
 
-  const coverEl = document.getElementById('detailSpeciesCover');
+  const coverEl = $('detailSpeciesCover');
   if (species.photo) {
     coverEl.className = 'cover-photo-lg';
-    coverEl.innerHTML = `<img src="${species.photo}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;" />`;
+    coverEl.innerHTML = `<img src="${esc(species.photo)}" alt="" />`;
   } else {
     coverEl.className = 'cover-icon-lg';
-    coverEl.innerHTML = species.icon || '🪴';
+    coverEl.textContent = species.icon || '🪴';
   }
 
-  // RENDERIZAR MINI CARDS DE CUIDADOS DA ESPÉCIE
-  const careGrid = document.getElementById('detailSpeciesCareGrid');
-  careGrid.innerHTML = '';
-
+  const careGrid = $('detailSpeciesCareGrid');
   const careFields = [
     { icon: "🏷️", label: "Categoria", val: species.category },
     { icon: "☀️", label: "Luz / Sol", val: species.light },
-    { icon: "💧", label: "Rega", val: species.water },
+    { icon: "💧", label: "Rega", val: species.water, extra: species.waterDays ? ` · a cada ${species.waterDays} dias` : '' },
     { icon: "✂️", label: "Poda", val: species.pruning },
     { icon: "💦", label: "Umidade", val: species.humidity },
     { icon: "🪱", label: "Solo", val: species.soil },
-    { icon: "🧪", label: "Adubação Comercial", val: species.fertilizer },
-    { icon: "🍌", label: "Adubação Natural", val: species.naturalFertilizer },
-    { icon: "💡", label: "Dica Extra", val: species.extraTips, wide: true },
-    { icon: "⚠️", label: "Observações", val: species.observations, wide: true },
+    { icon: "🧪", label: "Adubação comercial", val: species.fertilizer },
+    { icon: "🍌", label: "Adubação natural", val: species.naturalFertilizer },
+    { icon: "💡", label: "Dica extra", val: species.extraTips },
+    { icon: "⚠️", label: "Observações", val: species.observations },
     {
-      icon: petToxicityIcon(species.petToxicity),
-      label: "Toxicidade Pet",
-      val: species.petToxicity
-        ? (species.petWarning ? `${species.petToxicity} — ${species.petWarning}` : species.petToxicity)
-        : null,
-      wide: true
+      icon: petToxicityIcon(species.petToxicity), label: "Toxicidade pet", tox: species.petToxicity,
+      val: species.petToxicity ? (species.petWarning ? `${species.petToxicity} — ${species.petWarning}` : species.petToxicity) : null
     }
   ];
 
-  let countBadges = 0;
+  let html = '';
   careFields.forEach(f => {
-    if (f.val) {
-      countBadges++;
-      careGrid.innerHTML += `
-        <div class="care-badge-item${f.wide ? ' care-badge-wide' : ''}">
-          <span class="care-badge-label"><span class="care-badge-icon">${f.icon}</span>${f.label}</span>
-          <span class="care-badge-val">${f.val}</span>
-        </div>`;
-    }
+    if (!f.val) return;
+    html += `
+      <div class="care-item ${f.tox ? 'tox-' + esc(f.tox) : ''}">
+        <span class="ci-ico">${f.icon}</span>
+        <div><div class="ci-label">${f.label}</div><div class="ci-val">${esc(f.val)}${esc(f.extra || '')}</div></div>
+      </div>`;
   });
 
-  // Suporte a cadastro em formato legados de versão anterior
-  if (countBadges === 0 && species.care) {
-    careGrid.innerHTML = `<div class="care-badge-item" style="grid-column: 1/-1;"><span class="care-badge-val">${species.care}</span></div>`;
-  } else if (countBadges === 0) {
-    careGrid.innerHTML = `<p style="font-size:0.8rem; color:#888;">Nenhuma instrução específica cadastrada.</p>`;
+  if (!html && species.care) { // formato legado
+    html = `<div class="care-item"><span class="ci-ico">📋</span><div class="ci-val">${esc(species.care)}</div></div>`;
+  } else if (!html) {
+    html = `<p class="muted">Nenhuma instrução específica cadastrada. Toque em “Editar espécie” para preencher (ou use a IA).</p>`;
   }
+  careGrid.innerHTML = html;
 
-  renderVasesForSpecies(species.firestoreId);
+  renderVasesForSpecies(species.firestoreId, { animate: firstOpen });
 };
 
 window.backToSpecies = function() {
-  currentSelectedSpecies = null;
-  document.getElementById('sec-species-detail').style.display = 'none';
-  document.getElementById('sec-species').style.display = 'block';
+  if (history.state && history.state.v === 'detail') history.back();
+  else leaveDetailUI();
 };
 
-// RENDERIZAR VASOS DA ESPÉCIE SELECIONADA
-function renderVasesForSpecies(speciesId) {
-  const container = document.getElementById('vasesGrid');
-  container.innerHTML = '';
-
-  const myVases = allVases.filter(v => v.speciesId === speciesId);
-
-  if (myVases.length === 0) {
-    container.innerHTML = '<p style="color:#666; grid-column: 1/-1;">Você ainda não cadastrou nenhum vaso para esta espécie.</p>';
-    return;
-  }
-
-  myVases.forEach(vase => {
-    const lastWater = vase.lastWater ? new Date(vase.lastWater).toLocaleDateString('pt-BR') : 'Nunca registrado';
-    const lastFertilizer = vase.lastFertilizer ? new Date(vase.lastFertilizer).toLocaleDateString('pt-BR') : 'Nunca registrado';
-    const lastPruning = vase.lastPruning ? new Date(vase.lastPruning).toLocaleDateString('pt-BR') : 'Nunca registrado';
-    const lastRepot = vase.lastRepot ? new Date(vase.lastRepot).toLocaleDateString('pt-BR') : 'Não informado';
-
-    const history = (vase.history || []).sort((a,b) => new Date(b.date) - new Date(a.date));
-
-    const card = document.createElement('div');
-    card.className = 'vase-card';
-    card.innerHTML = `
-      ${vase.photo
-        ? `<img src="${vase.photo}" class="vase-img" style="cursor:pointer;" onclick="openVaseDetail('${vase.firestoreId}')" />`
-        : `<div class="vase-img" style="display:flex; align-items:center; justify-content:center; font-size:2.6rem; cursor:pointer;" onclick="openVaseDetail('${vase.firestoreId}')">${vase.icon || '🪴'}</div>`}
-
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h4 style="font-size:1.1rem; color:var(--moss); cursor:pointer;" onclick="openVaseDetail('${vase.firestoreId}')">${vase.name}</h4>
-        <div style="display:flex; gap:0.2rem;">
-          <button class="btn-icon" onclick="editVase('${vase.firestoreId}')" title="Editar Vaso">✏️</button>
-          <button class="btn-icon" onclick="deleteVase('${vase.firestoreId}')" title="Excluir Vaso">&times;</button>
-        </div>
-      </div>
-
-      <p style="font-size:0.75rem; color:#666;"><b>Tamanho/Material:</b> ${vase.size || 'Padrão'}</p>
-
-      <div style="background:var(--cream); padding:0.6rem; border-radius:8px; font-size:0.78rem;">
-        <div>💧 <b>Última Rega:</b> ${lastWater}</div>
-        <div>🧪 <b>Última Adubação:</b> ${lastFertilizer}</div>
-        <div>✂️ <b>Última Poda:</b> ${lastPruning}</div>
-        <div>🪴 <b>Último Transbordo:</b> ${lastRepot}</div>
-      </div>
-
-      <div class="mini-chart-container">
-        <div class="mini-chart-title">📊 Frequência de Regas (Dias)</div>
-        <canvas id="chart-${vase.firestoreId}" width="250" height="40"></canvas>
-      </div>
-
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.4rem;">
-        <button class="btn-secondary" style="font-size:0.75rem;" onclick="recordCareQuick('${vase.firestoreId}', 'lastWater')">💧 Regar Hoje</button>
-        <button class="btn-secondary" style="font-size:0.75rem;" onclick="recordCareQuick('${vase.firestoreId}', 'lastFertilizer')">🧪 Adubar Hoje</button>
-        <button class="btn-secondary" style="font-size:0.75rem;" onclick="recordCareQuick('${vase.firestoreId}', 'lastPruning')">✂️ Podar Hoje</button>
-        <button class="btn-secondary" style="font-size:0.75rem;" onclick="recordCareQuick('${vase.firestoreId}', 'lastRepot')">🪴 Transplantar Hoje</button>
-      </div>
-
-      <button class="btn-primary" style="font-size:0.78rem; padding:0.5rem;" onclick="openCareLogDrawer('${vase.firestoreId}')">
-        + Registro Retroativo / Lembrete
-      </button>
-
-      <button class="btn-secondary" style="font-size:0.75rem; background:var(--gold);" onclick="openVaseDetail('${vase.firestoreId}')">
-        🔍 Ver Detalhes & Galeria
-      </button>
-    `;
-    container.appendChild(card);
-
-    setTimeout(() => drawMiniChart(vase.firestoreId, history), 50);
-  });
-}
-
-// DESENHAR MINI GRÁFICO DE FREQUÊNCIA
-function drawMiniChart(vaseId, history) {
-  const canvas = document.getElementById(`chart-${vaseId}`);
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  const regas = history.filter(h => h.type === 'lastWater').reverse();
-  if (regas.length < 2) {
-    ctx.fillStyle = '#aaa';
-    ctx.font = '10px sans-serif';
-    ctx.fillText('Histórico suficiente necessário', 10, 24);
-    return;
-  }
-
+// ==================== RENDER: VASOS ====================
+function sparklineHtml(history) {
+  const regas = history.filter(h => h.type === 'lastWater').map(h => new Date(h.date)).filter(d => !isNaN(d)).sort((a, b) => a - b);
+  if (regas.length < 2) return `<div class="spark-empty">Registre mais regas para ver o ritmo.</div>`;
   const intervals = [];
   for (let i = 1; i < regas.length; i++) {
-    const diff = (new Date(regas[i].date) - new Date(regas[i-1].date)) / (1000 * 60 * 60 * 24);
-    intervals.push(Math.max(1, Math.round(diff)));
+    intervals.push(Math.max(1, Math.round((regas[i] - regas[i - 1]) / DAY_MS)));
+  }
+  const last = intervals.slice(-10);
+  const max = Math.max(...last, 1);
+  return `<div class="spark-bars">${last.map((v, k) => `<div class="spark-bar" style="--h:${Math.max(12, Math.round(v / max * 100))}%; --k:${k}"><i>${v}d</i></div>`).join('')}</div>`;
+}
+
+function renderVasesForSpecies(speciesId, { animate = false } = {}) {
+  const container = $('vasesGrid');
+  const species = allSpecies.find(s => s.firestoreId === speciesId);
+  const myVases = allVases.filter(v => v.speciesId === speciesId);
+
+  if (!vasesLoaded) {
+    container.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div>';
+    return;
   }
 
-  const maxVal = Math.max(...intervals, 10);
-  const barWidth = Math.min(20, (canvas.width - 20) / intervals.length);
+  if (myVases.length === 0) {
+    container.innerHTML = `<div class="empty-state">${emptyPlantSvg()}<h4>Nenhum vaso por aqui ainda</h4><p>Cadastre o primeiro vaso desta espécie para registrar cuidados e fotos.</p><button class="btn btn-primary" onclick="openAddVaseModal()">🪴 Adicionar vaso</button></div>`;
+    return;
+  }
 
-  intervals.forEach((val, index) => {
-    const h = (val / maxVal) * (canvas.height - 10);
-    const x = 10 + index * (barWidth + 4);
-    const y = canvas.height - h;
+  container.innerHTML = '';
+  myVases.forEach((vase, i) => {
+    const ws = waterStatus(vase, species);
+    const photos = vasePhotos(vase);
+    const cover = photos.length ? photos[photos.length - 1].photo : '';
+    const history = vase.history || [];
 
-    ctx.fillStyle = '#6b8e63';
-    ctx.fillRect(x, y, barWidth, h);
+    const card = document.createElement('div');
+    card.className = 'vase-card' + (animate ? ' enter' : '');
+    card.style.setProperty('--i', Math.min(i, 10));
+    const vid = vase.firestoreId;
 
-    ctx.fillStyle = '#1c241b';
-    ctx.font = '8px sans-serif';
-    ctx.fillText(`${val}d`, x, y - 2);
+    card.innerHTML = `
+      <button class="vase-media" onclick="openVaseDetail('${vid}')" aria-label="Abrir detalhes de ${esc(vase.name)}">
+        ${cover ? `<img src="${esc(cover)}" class="vase-img" alt="" loading="lazy" decoding="async" />` : `<div class="vase-img-icon">${esc(vase.icon || '🪴')}</div>`}
+        <div class="vase-chips top">
+          <span class="pill ${ws.state === 'late' || ws.state === 'due' ? 'late' : 'water'}">${ws.icon} ${esc(ws.title)}</span>
+        </div>
+        <div class="vase-chips bottom">
+          <span></span>
+          ${photos.length ? `<span class="pill">📸 ${photos.length}</span>` : ''}
+        </div>
+      </button>
+
+      <div class="vase-body">
+        <div class="vase-title-row">
+          <div>
+            <h4 onclick="openVaseDetail('${vid}')">${esc(vase.name)}</h4>
+            <div class="vase-size">${esc(vase.size || 'Tamanho padrão')}</div>
+          </div>
+          <div class="vase-tools">
+            <button class="btn-icon" onclick="editVase('${vid}')" title="Editar vaso" aria-label="Editar vaso">✏️</button>
+            <button class="btn-icon danger" onclick="deleteVase('${vid}')" title="Excluir vaso" aria-label="Excluir vaso">🗑</button>
+          </div>
+        </div>
+
+        <div class="water-meter s-${ws.state}">
+          <div class="water-meter-top"><b>${ws.icon} ${esc(ws.title)}</b><span>${esc(ws.sub)}</span></div>
+          <div class="water-track"><div class="water-fill" style="--pct:${ws.pct}%"></div></div>
+        </div>
+
+        <div class="care-dates">
+          <div class="care-date"><span>💧 Rega</span><b>${fmtDate(vase.lastWater, 'Nunca')}</b></div>
+          <div class="care-date"><span>🧪 Adubação</span><b>${fmtDate(vase.lastFertilizer, 'Nunca')}</b></div>
+          <div class="care-date"><span>✂️ Poda</span><b>${fmtDate(vase.lastPruning, 'Nunca')}</b></div>
+          <div class="care-date"><span>🪴 Transbordo</span><b>${fmtDate(vase.lastRepot, 'Não informado')}</b></div>
+        </div>
+
+        <div class="spark">
+          <div class="spark-title">📊 Intervalo entre regas</div>
+          ${sparklineHtml(history)}
+        </div>
+
+        <div class="quick-actions">
+          <button class="quick-btn water-btn" onclick="recordCareQuick('${vid}', 'lastWater', this)"><span class="q-ico">💧</span>Regar</button>
+          <button class="quick-btn" onclick="recordCareQuick('${vid}', 'lastFertilizer', this)"><span class="q-ico">🧪</span>Adubar</button>
+          <button class="quick-btn" onclick="recordCareQuick('${vid}', 'lastPruning', this)"><span class="q-ico">✂️</span>Podar</button>
+          <button class="quick-btn" onclick="recordCareQuick('${vid}', 'lastRepot', this)"><span class="q-ico">🪴</span>Transplantar</button>
+        </div>
+
+        <div class="vase-footer">
+          <button class="btn btn-primary" style="padding:.7rem 1rem; font-size:.82rem;" onclick="openVaseDetail('${vid}')">🔍 Detalhes & galeria</button>
+          <button class="btn btn-secondary" onclick="openCareLogDrawer('${vid}')" title="Registro retroativo ou lembrete" aria-label="Registro retroativo ou lembrete">⏰</button>
+        </div>
+      </div>`;
+    container.appendChild(card);
   });
 }
 
-// REGISTRO RÁPIDO DO DIA DE HOJE
-window.recordCareQuick = async function(vaseId, careType) {
+// ==================== CUIDADOS ====================
+const CARE_LABELS = {
+  lastWater: { done: '💧 Rega registrada', verb: 'Rega' },
+  lastFertilizer: { done: '🧪 Adubação registrada', verb: 'Adubação' },
+  lastPruning: { done: '✂️ Poda registrada', verb: 'Poda' },
+  lastRepot: { done: '🪴 Transplante registrado', verb: 'Transplante' }
+};
+
+window.recordCareQuick = async function(vaseId, careType, btn) {
   const now = new Date().toISOString();
-  const vaseDoc = doc(db, "vases", vaseId);
+  const vase = allVases.find(v => v.firestoreId === vaseId);
+  burst(btn, careType);
 
   try {
-    await updateDoc(vaseDoc, {
+    await updateDoc(doc(db, "vases", vaseId), {
       [careType]: now,
       history: arrayUnion({ type: careType, date: now, notes: "Registro rápido" })
     });
+    toast(`${CARE_LABELS[careType].done}${vase ? ' · ' + vase.name : ''}`);
   } catch (err) {
-    alert("Erro ao registrar ação: " + err.message);
+    toast('Erro ao registrar ação: ' + friendlyError(err), 'error');
   }
 };
 
-// REGAR TODOS OS VASOS DAS ESPÉCIES ATUALMENTE FILTRADAS/VISÍVEIS NA BUSCA
+// REGAR TODOS OS VASOS DAS ESPÉCIES ATUALMENTE FILTRADAS/VISÍVEIS
 window.waterAllFiltered = async function() {
-  const filteredSpecies = allSpecies.filter(speciesMatchesSearch);
-  const speciesIds = new Set(filteredSpecies.map(s => s.firestoreId));
+  const speciesIds = new Set(filteredSpecies().map(s => s.firestoreId));
   const vasesToWater = allVases.filter(v => speciesIds.has(v.speciesId));
 
   if (vasesToWater.length === 0) {
-    alert('Nenhum vaso encontrado para regar.');
+    toast('Nenhum vaso encontrado para regar.', 'error');
     return;
   }
 
-  if (!confirm(`Regar ${vasesToWater.length} vaso(s) agora?`)) return;
+  const ok = await askConfirm(`Regar ${plural(vasesToWater.length, 'vaso', 'vasos')} agora?`, { icon: '💧', okLabel: 'Regar todos' });
+  if (!ok) return;
 
   const now = new Date().toISOString();
   try {
@@ -568,77 +923,76 @@ window.waterAllFiltered = async function() {
       lastWater: now,
       history: arrayUnion({ type: 'lastWater', date: now, notes: 'Rega em lote (Regar Todos)' })
     })));
+    petalRain();
+    toast(`💧 ${plural(vasesToWater.length, 'vaso regado', 'vasos regados')}!`);
   } catch (err) {
-    alert('Erro ao regar vasos: ' + err.message);
+    toast('Erro ao regar vasos: ' + friendlyError(err), 'error');
   }
 };
 
-// ABRIR DRAWER REGISTRO RETROATIVO
 window.openCareLogDrawer = function(vaseId) {
-  document.getElementById('logVaseId').value = vaseId;
+  $('logVaseId').value = vaseId;
   const now = new Date();
   now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-  document.getElementById('logDate').value = now.toISOString().slice(0, 16);
+  $('logDate').value = now.toISOString().slice(0, 16);
   openDrawer('drawerCareLog');
 };
 
 window.saveCareLog = async function(e) {
   e.preventDefault();
-  const vaseId = document.getElementById('logVaseId').value;
-  const actionType = document.getElementById('logActionType').value;
-  const dateVal = document.getElementById('logDate').value;
-  const notes = document.getElementById('logNotes').value;
+  const vaseId = $('logVaseId').value;
+  const actionType = $('logActionType').value;
+  const dateVal = $('logDate').value;
+  const notes = $('logNotes').value;
 
   if (!vaseId || !dateVal) return;
 
+  const btn = $('btnSaveLog');
+  btn.disabled = true;
   const isoDate = new Date(dateVal).toISOString();
-  const vaseDoc = doc(db, "vases", vaseId);
 
   try {
-    const updatePayload = {
-      history: arrayUnion({ type: actionType, date: isoDate, notes: notes })
-    };
+    const updatePayload = { history: arrayUnion({ type: actionType, date: isoDate, notes }) };
     if (actionType !== 'lembrete' && actionType !== 'nota') {
       updatePayload[actionType] = isoDate;
     }
-
-    await updateDoc(vaseDoc, updatePayload);
+    await updateDoc(doc(db, "vases", vaseId), updatePayload);
     closeActiveDrawer();
-    document.getElementById('formCareLog').reset();
+    $('formCareLog').reset();
+    toast('Registro salvo 🌿');
   } catch (err) {
-    alert("Erro ao salvar log: " + err.message);
+    toast('Erro ao salvar registro: ' + friendlyError(err), 'error');
+  } finally {
+    btn.disabled = false;
   }
 };
 
-// ==================== NAVEGAÇÃO ====================
-window.switchTab = function(tab) {
-  document.getElementById('sec-species').style.display = tab === 'species' ? 'block' : 'none';
-  document.getElementById('sec-species-detail').style.display = 'none';
-  document.getElementById('sec-ai').style.display = tab === 'ai' ? 'block' : 'none';
-
-  document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-  document.querySelectorAll(`.nav-btn[onclick="switchTab('${tab}')"]`).forEach(btn => btn.classList.add('active'));
-};
-
+// ==================== DRAWERS ====================
 window.openDrawer = function(id) {
   activeDrawerId = id;
-  document.getElementById(id).classList.add('active');
+  $(id).classList.add('active');
+  document.body.classList.add('no-scroll');
 };
 
 window.closeActiveDrawer = function() {
-  if (activeDrawerId) {
-    document.getElementById(activeDrawerId).classList.remove('active');
-    activeDrawerId = null;
-  }
+  if (!activeDrawerId) return;
+  if (activeDrawerId === 'drawerVaseDetail') currentDetailVaseId = null;
+  $(activeDrawerId).classList.remove('active');
+  activeDrawerId = null;
+  document.body.classList.remove('no-scroll');
 };
+
+document.querySelectorAll('.modal-overlay').forEach(ov => {
+  ov.addEventListener('click', (e) => { if (e.target === ov) closeActiveDrawer(); });
+});
 
 // ==================== ESPÉCIES: SALVAR / EDITAR / EXCLUIR ====================
 window.openAddSpeciesModal = function() {
-  document.getElementById('formSpecies').reset();
-  document.getElementById('speciesEditId').value = '';
-  document.getElementById('speciesModalTitle').innerText = 'Cadastrar Nova Espécie';
-  document.getElementById('speciePhotoPreview').style.display = 'none';
-  document.getElementById('speciePhotoPreview').src = '';
+  $('formSpecies').reset();
+  $('speciesEditId').value = '';
+  $('speciesModalTitle').textContent = 'Cadastrar nova espécie';
+  $('speciePhotoPreview').style.display = 'none';
+  $('speciePhotoPreview').src = '';
   speciePhotoData = null;
   openDrawer('drawerAddSpecies');
 };
@@ -647,28 +1001,28 @@ window.editSpecies = function(firestoreId) {
   const sp = allSpecies.find(s => s.firestoreId === firestoreId);
   if (!sp) return;
 
-  document.getElementById('speciesEditId').value = sp.firestoreId;
-  document.getElementById('speciesModalTitle').innerText = 'Editar Espécie';
+  $('speciesEditId').value = sp.firestoreId;
+  $('speciesModalTitle').textContent = 'Editar espécie';
 
-  document.getElementById('specieName').value = sp.name || '';
-  document.getElementById('specieScientific').value = sp.scientific || '';
-  document.getElementById('specieIcon').value = sp.icon || '🪴';
-  document.getElementById('fieldCategory').value = sp.category || '';
-  document.getElementById('fieldLight').value = sp.light || '';
-  document.getElementById('fieldWater').value = sp.water || '';
-  document.getElementById('specieWaterDays').value = sp.waterDays || '';
-  document.getElementById('fieldPruning').value = sp.pruning || '';
-  document.getElementById('fieldHumidity').value = sp.humidity || '';
-  document.getElementById('fieldSoil').value = sp.soil || '';
-  document.getElementById('fieldFertilizer').value = sp.fertilizer || '';
-  document.getElementById('fieldNaturalFertilizer').value = sp.naturalFertilizer || '';
-  document.getElementById('fieldExtraTips').value = sp.extraTips || '';
-  document.getElementById('fieldObservations').value = sp.observations || '';
-  document.getElementById('fieldPetToxicity').value = sp.petToxicity || '';
-  document.getElementById('fieldPetWarning').value = sp.petWarning || '';
+  $('specieName').value = sp.name || '';
+  $('specieScientific').value = sp.scientific || '';
+  $('specieIcon').value = sp.icon || '🪴';
+  $('fieldCategory').value = sp.category || '';
+  $('fieldLight').value = sp.light || '';
+  $('fieldWater').value = sp.water || '';
+  $('specieWaterDays').value = sp.waterDays || '';
+  $('fieldPruning').value = sp.pruning || '';
+  $('fieldHumidity').value = sp.humidity || '';
+  $('fieldSoil').value = sp.soil || '';
+  $('fieldFertilizer').value = sp.fertilizer || '';
+  $('fieldNaturalFertilizer').value = sp.naturalFertilizer || '';
+  $('fieldExtraTips').value = sp.extraTips || '';
+  $('fieldObservations').value = sp.observations || '';
+  $('fieldPetToxicity').value = sp.petToxicity || '';
+  $('fieldPetWarning').value = sp.petWarning || '';
 
   speciePhotoData = null;
-  const preview = document.getElementById('speciePhotoPreview');
+  const preview = $('speciePhotoPreview');
   if (sp.photo) {
     preview.src = sp.photo;
     preview.style.display = 'block';
@@ -686,34 +1040,32 @@ window.editCurrentSpecies = function() {
 
 window.saveSpecies = async function(event) {
   event.preventDefault();
-  const btn = document.getElementById('btnSaveSpecies');
-  const editId = document.getElementById('speciesEditId').value;
+  const btn = $('btnSaveSpecies');
+  const editId = $('speciesEditId').value;
 
   const speciesData = {
-    name: document.getElementById('specieName').value.trim(),
-    scientific: document.getElementById('specieScientific').value.trim(),
-    icon: document.getElementById('specieIcon').value || '🪴',
-    category: document.getElementById('fieldCategory').value.trim(),
-    light: document.getElementById('fieldLight').value.trim(),
-    water: document.getElementById('fieldWater').value.trim(),
-    waterDays: Number(document.getElementById('specieWaterDays').value) || 5,
-    pruning: document.getElementById('fieldPruning').value.trim(),
-    humidity: document.getElementById('fieldHumidity').value.trim(),
-    soil: document.getElementById('fieldSoil').value.trim(),
-    fertilizer: document.getElementById('fieldFertilizer').value.trim(),
-    naturalFertilizer: document.getElementById('fieldNaturalFertilizer').value.trim(),
-    extraTips: document.getElementById('fieldExtraTips').value.trim(),
-    observations: document.getElementById('fieldObservations').value.trim(),
-    petToxicity: document.getElementById('fieldPetToxicity').value,
-    petWarning: document.getElementById('fieldPetWarning').value.trim(),
+    name: $('specieName').value.trim(),
+    scientific: $('specieScientific').value.trim(),
+    icon: $('specieIcon').value || '🪴',
+    category: $('fieldCategory').value.trim(),
+    light: $('fieldLight').value.trim(),
+    water: $('fieldWater').value.trim(),
+    waterDays: Number($('specieWaterDays').value) || 5,
+    pruning: $('fieldPruning').value.trim(),
+    humidity: $('fieldHumidity').value.trim(),
+    soil: $('fieldSoil').value.trim(),
+    fertilizer: $('fieldFertilizer').value.trim(),
+    naturalFertilizer: $('fieldNaturalFertilizer').value.trim(),
+    extraTips: $('fieldExtraTips').value.trim(),
+    observations: $('fieldObservations').value.trim(),
+    petToxicity: $('fieldPetToxicity').value,
+    petWarning: $('fieldPetWarning').value.trim(),
   };
 
   btn.disabled = true;
 
   try {
-    if (speciePhotoData) {
-      speciesData.photo = speciePhotoData;
-    }
+    if (speciePhotoData) speciesData.photo = speciePhotoData;
 
     if (editId) {
       await updateDoc(doc(db, "species", editId), speciesData);
@@ -722,84 +1074,86 @@ window.saveSpecies = async function(event) {
       speciesData.createdAt = new Date().toISOString();
       await addDoc(speciesCol, speciesData);
     }
-    document.getElementById('formSpecies').reset();
-    document.getElementById('speciePhotoPreview').style.display = 'none';
+    $('formSpecies').reset();
+    $('speciePhotoPreview').style.display = 'none';
     speciePhotoData = null;
     closeActiveDrawer();
+    toast(editId ? 'Espécie atualizada 🌿' : 'Espécie cadastrada 🌱');
+    if (!editId) petalRain(16);
   } catch (err) {
-    alert('Erro ao salvar espécie: ' + err.message);
+    toast('Erro ao salvar espécie: ' + friendlyError(err), 'error');
   } finally {
     btn.disabled = false;
   }
 };
 
 window.deleteSpecies = async function(firestoreId) {
-  if (!confirm('Tem certeza que deseja excluir esta espécie?')) return;
+  const sp = allSpecies.find(s => s.firestoreId === firestoreId);
+  const vs = sp ? vasesOf(sp) : [];
+  const extra = vs.length ? ` Os ${plural(vs.length, 'vaso', 'vasos')} desta espécie (com histórico e fotos) também serão excluídos.` : '';
+  const ok = await askConfirm(`Excluir ${sp ? '“' + sp.name + '”' : 'esta espécie'}?${extra} Essa ação não pode ser desfeita.`, { icon: '🥀', okLabel: 'Excluir' });
+  if (!ok) return;
   try {
+    await Promise.all(vs.map(v => deleteDoc(doc(db, "vases", v.firestoreId))));
     await deleteDoc(doc(db, "species", firestoreId));
-    if (currentSelectedSpecies && currentSelectedSpecies.firestoreId === firestoreId) {
-      backToSpecies();
-    }
+    if (currentSelectedSpecies && currentSelectedSpecies.firestoreId === firestoreId) backToSpecies();
+    toast('Espécie excluída.');
   } catch (err) {
-    alert('Erro ao excluir espécie: ' + err.message);
+    toast('Erro ao excluir espécie: ' + friendlyError(err), 'error');
   }
 };
 
-// PREENCHIMENTO AUTOMÁTICO COM IA (CAMPOS SEPARADOS)
-window.autoFillWithAI = async function() {
-  const name = document.getElementById('specieName').value.trim();
-  if (!name) return alert('Digite o nome da planta primeiro.');
+// PREENCHIMENTO AUTOMÁTICO COM IA
+window.autoFillWithAI = async function(btn) {
+  const name = $('specieName').value.trim();
+  if (!name) { toast('Digite o nome da planta primeiro.', 'error'); $('specieName').focus(); return; }
 
-  const btn = event.target;
   btn.disabled = true;
-  btn.innerText = '✨ Consultando IA...';
+  btn.textContent = '✨ Consultando IA…';
 
   try {
     const formData = new FormData();
     formData.append('plant_name', name);
 
-    const response = await fetchFromWorkers('auto-fill-plant', {
-      method: 'POST',
-      body: formData
-    });
-
+    const response = await fetchFromWorkers('auto-fill-plant', { method: 'POST', body: formData });
     const data = await response.json();
 
     if (!response.ok) {
       throw new Error(data.error || 'Erro desconhecido ao consultar a IA (todas as contas indisponíveis no momento).');
     }
 
-    document.getElementById('specieScientific').value = data.scientific_name || '';
-    document.getElementById('fieldCategory').value = data.category || '';
-    document.getElementById('fieldLight').value = data.light || '';
-    document.getElementById('fieldWater').value = data.water || '';
-    document.getElementById('specieWaterDays').value = data.water_days || 5;
-    document.getElementById('fieldPruning').value = data.pruning || '';
-    document.getElementById('fieldHumidity').value = data.humidity || '';
-    document.getElementById('fieldSoil').value = data.soil || '';
-    document.getElementById('fieldFertilizer').value = data.fertilizer || '';
-    document.getElementById('fieldNaturalFertilizer').value = data.natural_fertilizer || '';
-    document.getElementById('fieldExtraTips').value = data.extra_tips || '';
-    document.getElementById('fieldObservations').value = data.observations || '';
+    $('specieScientific').value = data.scientific_name || '';
+    $('fieldCategory').value = data.category || '';
+    $('fieldLight').value = data.light || '';
+    $('fieldWater').value = data.water || '';
+    $('specieWaterDays').value = data.water_days || 5;
+    $('fieldPruning').value = data.pruning || '';
+    $('fieldHumidity').value = data.humidity || '';
+    $('fieldSoil').value = data.soil || '';
+    $('fieldFertilizer').value = data.fertilizer || '';
+    $('fieldNaturalFertilizer').value = data.natural_fertilizer || '';
+    $('fieldExtraTips').value = data.extra_tips || '';
+    $('fieldObservations').value = data.observations || '';
 
     const validLevels = ['Segura', 'Tóxica', 'Letal'];
-    document.getElementById('fieldPetToxicity').value = validLevels.includes(data.pet_toxicity) ? data.pet_toxicity : '';
-    document.getElementById('fieldPetWarning').value = data.pet_warning || '';
+    $('fieldPetToxicity').value = validLevels.includes(data.pet_toxicity) ? data.pet_toxicity : '';
+    $('fieldPetWarning').value = data.pet_warning || '';
+    toast('Ficha preenchida pela IA ✨');
   } catch (err) {
-    alert('Erro ao consultar IA: ' + err.message);
+    toast('Erro ao consultar IA: ' + err.message, 'error');
   } finally {
     btn.disabled = false;
-    btn.innerText = '✨ Preencher Ficha com IA';
+    btn.textContent = '✨ Preencher ficha com IA';
   }
 };
 
 // ==================== VASOS: CADASTRAR / EDITAR / EXCLUIR ====================
 window.openAddVaseModal = function() {
-  document.getElementById('formVase').reset();
-  document.getElementById('vaseEditId').value = '';
-  document.getElementById('vaseModalTitle').innerText = 'Cadastrar Novo Vaso';
-  document.getElementById('vasePhotoPreview').style.display = 'none';
-  document.getElementById('vasePhotoPreview').src = '';
+  $('formVase').reset();
+  $('vaseEditId').value = '';
+  $('vaseModalTitle').textContent = 'Cadastrar novo vaso';
+  $('vasePhotoPreview').style.display = 'none';
+  $('vasePhotoPreview').src = '';
   vasePhotoData = null;
   openDrawer('drawerAddVase');
 };
@@ -808,18 +1162,19 @@ window.editVase = function(vaseId) {
   const vase = allVases.find(v => v.firestoreId === vaseId);
   if (!vase) return;
 
-  document.getElementById('vaseEditId').value = vase.firestoreId;
-  document.getElementById('vaseModalTitle').innerText = 'Editar Vaso';
+  $('vaseEditId').value = vase.firestoreId;
+  $('vaseModalTitle').textContent = 'Editar vaso';
 
-  document.getElementById('vaseName').value = vase.name || '';
-  document.getElementById('vaseIcon').value = vase.icon || '🪴';
-  document.getElementById('vaseSize').value = vase.size || '';
-  document.getElementById('vaseRepotDate').value = vase.lastRepot ? vase.lastRepot.slice(0, 10) : '';
+  $('vaseName').value = vase.name || '';
+  $('vaseIcon').value = vase.icon || '🪴';
+  $('vaseSize').value = vase.size || '';
+  $('vaseRepotDate').value = vase.lastRepot ? vase.lastRepot.slice(0, 10) : '';
 
   vasePhotoData = null;
-  const preview = document.getElementById('vasePhotoPreview');
-  if (vase.photo) {
-    preview.src = vase.photo;
+  const preview = $('vasePhotoPreview');
+  const cover = vaseCover(vase);
+  if (cover) {
+    preview.src = cover;
     preview.style.display = 'block';
   } else {
     preview.style.display = 'none';
@@ -831,50 +1186,43 @@ window.editVase = function(vaseId) {
 
 window.saveVase = async function(event) {
   event.preventDefault();
-  if (!currentSelectedSpecies) return alert('Selecione uma espécie primeiro.');
+  if (!currentSelectedSpecies) { toast('Selecione uma espécie primeiro.', 'error'); return; }
 
-  const btn = document.getElementById('btnSaveVase');
-  const editId = document.getElementById('vaseEditId').value;
-  const name = document.getElementById('vaseName').value.trim();
-  const icon = document.getElementById('vaseIcon').value || '🪴';
-  const size = document.getElementById('vaseSize').value.trim();
-  const repotDate = document.getElementById('vaseRepotDate').value;
+  const btn = $('btnSaveVase');
+  const editId = $('vaseEditId').value;
+  const name = $('vaseName').value.trim();
+  const icon = $('vaseIcon').value || '🪴';
+  const size = $('vaseSize').value.trim();
+  const repotDate = $('vaseRepotDate').value;
 
   btn.disabled = true;
 
   try {
     if (editId) {
-      const vaseDoc = doc(db, "vases", editId);
+      const vase = allVases.find(v => v.firestoreId === editId);
       const updatePayload = { name, size, icon };
 
-      if (vasePhotoData) {
-        updatePayload.photo = vasePhotoData;
-        updatePayload.photoHistory = arrayUnion({ photo: vasePhotoData, date: new Date().toISOString() });
+      if (vasePhotoData && vase) {
+        if (docBytes(vase) + vasePhotoData.length > DOC_SAFE_BYTES) {
+          throw new Error('Este vaso já está com a galeria cheia. Exclua fotos antigas antes de adicionar novas.');
+        }
+        Object.assign(updatePayload, buildPhotoAddPayload(vase, vasePhotoData));
       }
 
-      if (repotDate) {
-        updatePayload.lastRepot = new Date(repotDate).toISOString();
-      }
+      if (repotDate) updatePayload.lastRepot = new Date(repotDate).toISOString();
 
-      await updateDoc(vaseDoc, updatePayload);
+      await updateDoc(doc(db, "vases", editId), updatePayload);
     } else {
-      let photoBase64 = '';
-      let photoHistory = [];
-
-      if (vasePhotoData) {
-        photoBase64 = vasePhotoData;
-        photoHistory = [{ photo: photoBase64, date: new Date().toISOString() }];
-      }
-
+      const now = new Date().toISOString();
       const vaseData = {
         speciesId: currentSelectedSpecies.firestoreId,
         name,
         icon,
         size,
-        photo: photoBase64,
-        photoHistory,
+        photo: '', // a capa é sempre a foto mais recente de photoHistory
+        photoHistory: vasePhotoData ? [{ photo: vasePhotoData, date: now }] : [],
         history: [],
-        createdAt: new Date().toISOString()
+        createdAt: now
       };
 
       if (repotDate) {
@@ -886,23 +1234,27 @@ window.saveVase = async function(event) {
       await addDoc(vasesCol, vaseData);
     }
 
-    document.getElementById('formVase').reset();
-    document.getElementById('vasePhotoPreview').style.display = 'none';
+    $('formVase').reset();
+    $('vasePhotoPreview').style.display = 'none';
     vasePhotoData = null;
     closeActiveDrawer();
+    toast(editId ? 'Vaso atualizado 🪴' : 'Vaso cadastrado 🪴');
   } catch (err) {
-    alert('Erro ao salvar vaso: ' + err.message);
+    toast('Erro ao salvar vaso: ' + friendlyError(err), 'error');
   } finally {
     btn.disabled = false;
   }
 };
 
 window.deleteVase = async function(firestoreId) {
-  if (!confirm('Tem certeza que deseja excluir este vaso?')) return;
+  const vase = allVases.find(v => v.firestoreId === firestoreId);
+  const ok = await askConfirm(`Excluir ${vase ? '“' + vase.name + '”' : 'este vaso'} com todo o histórico e fotos? Essa ação não pode ser desfeita.`, { icon: '🥀', okLabel: 'Excluir' });
+  if (!ok) return;
   try {
     await deleteDoc(doc(db, "vases", firestoreId));
+    toast('Vaso excluído.');
   } catch (err) {
-    alert('Erro ao excluir vaso: ' + err.message);
+    toast('Erro ao excluir vaso: ' + friendlyError(err), 'error');
   }
 };
 
@@ -917,23 +1269,21 @@ function renderVaseDetail(vaseId) {
   const vase = allVases.find(v => v.firestoreId === vaseId);
   if (!vase) return;
 
-  document.getElementById('vaseDetailName').innerText = vase.name;
+  $('vaseDetailName').textContent = vase.name;
 
-  const photoEl = document.getElementById('vaseDetailPhoto');
-  const photoPlaceholder = document.getElementById('vaseDetailPhotoPlaceholder');
-  if (vase.photo) {
-    photoEl.src = vase.photo;
-    photoEl.style.display = 'block';
-    photoPlaceholder.style.display = 'none';
+  const photos = vasePhotos(vase);
+  const hero = $('vaseDetailHero');
+  if (photos.length) {
+    hero.disabled = false;
+    hero.innerHTML = `<img src="${esc(photos[photos.length - 1].photo)}" alt="Foto mais recente de ${esc(vase.name)}" /><span class="pill hint">🔍 Ampliar${photos.length > 1 ? ' · ' + photos.length + ' fotos' : ''}</span>`;
   } else {
-    photoEl.style.display = 'none';
-    photoPlaceholder.style.display = 'flex';
-    photoPlaceholder.innerText = vase.icon || '🌱';
+    hero.disabled = true;
+    hero.innerHTML = `<div class="hero-ph">${esc(vase.icon || '🌱')}</div>`;
   }
 
   const history = vase.history || [];
 
-  // STATS DE FREQUÊNCIA
+  // ----- Frequência de cuidados -----
   const CARE_TYPES = [
     { key: 'lastWater', label: '💧 Rega' },
     { key: 'lastFertilizer', label: '🧪 Adubação' },
@@ -941,64 +1291,51 @@ function renderVaseDetail(vaseId) {
     { key: 'lastRepot', label: '🪴 Transbordo' }
   ];
 
-  let statsHtml = '';
-  CARE_TYPES.forEach(ct => {
-    const lastDate = vase[ct.key] ? new Date(vase[ct.key]).toLocaleDateString('pt-BR') : 'Nunca registrado';
-    const events = history.filter(h => h.type === ct.key).map(h => new Date(h.date)).sort((a, b) => a - b);
-
-    let freqText = 'Mínimo 2 registros necessários';
+  $('vaseDetailStats').innerHTML = CARE_TYPES.map(ct => {
+    const events = history.filter(h => h.type === ct.key).map(h => new Date(h.date)).filter(d => !isNaN(d)).sort((a, b) => a - b);
+    let freqText = 'Mínimo de 2 registros necessário';
     if (events.length >= 2) {
-      let totalDays = 0;
-      for (let i = 1; i < events.length; i++) {
-        totalDays += (events[i] - events[i - 1]) / (1000 * 60 * 60 * 24);
-      }
-      const avg = totalDays / (events.length - 1);
-      freqText = `Média: a cada ${avg.toFixed(1)} dias`;
+      let total = 0;
+      for (let i = 1; i < events.length; i++) total += (events[i] - events[i - 1]) / DAY_MS;
+      freqText = `Média: a cada ${(total / (events.length - 1)).toFixed(1).replace('.', ',')} dias`;
     }
+    return `<div class="stat-mini"><div class="t">${ct.label}</div><div class="d">Última: ${fmtDate(vase[ct.key], 'nunca registrada')}</div><div class="f">${freqText}</div></div>`;
+  }).join('');
 
-    statsHtml += `
-      <div style="padding: 0.4rem 0; border-bottom: 1px solid rgba(0,0,0,0.06);">
-        <div><b>${ct.label}</b> — última: ${lastDate}</div>
-        <div style="color: var(--sage); font-size: 0.78rem;">${freqText}</div>
-      </div>`;
-  });
-  document.getElementById('vaseDetailStats').innerHTML = statsHtml;
-
-  // HISTÓRICO EM ORDEM CRONOLÓGICA DECRESCENTE (RETROATIVO CORRETO)
+  // ----- Histórico -----
+  const typeLabels = { lastWater: '💧 Regou', lastFertilizer: '🧪 Adubou', lastPruning: '✂️ Podou', lastRepot: '🪴 Transbordou', lembrete: '⏰ Lembrete', nota: '📝 Nota' };
   const sortedHistory = [...history].sort((a, b) => new Date(b.date) - new Date(a.date));
-  const historyEl = document.getElementById('vaseDetailHistory');
+  $('vaseDetailHistory').innerHTML = sortedHistory.length === 0
+    ? '<p class="muted">Nenhum registro de cuidado ainda.</p>'
+    : sortedHistory.map(h => {
+        const d = new Date(h.date);
+        return `<div class="timeline-item">
+          <span class="timeline-date">${d.toLocaleDateString('pt-BR')} · ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+          <div><b>${typeLabels[h.type] || esc(h.type)}</b> — ${esc(h.notes || 'Sem observação')}</div>
+        </div>`;
+      }).join('');
 
-  const typeLabels = {
-    lastWater: '💧 Regou',
-    lastFertilizer: '🧪 Adubou',
-    lastPruning: '✂️ Podou',
-    lastRepot: '🪴 Transbordou',
-    lembrete: '⏰ Lembrete',
-    nota: '📝 Nota'
-  };
+  // ----- Galeria clicável -----
+  const used = docBytes(vase);
+  const pct = Math.min(100, Math.round(used / DOC_LIMIT_BYTES * 100));
+  const meter = $('galleryMeter');
+  meter.style.setProperty('--pct', pct + '%');
+  meter.classList.toggle('full', pct >= 85);
+  $('galleryNote').textContent = photos.length
+    ? `${plural(photos.length, 'foto', 'fotos')} · ${pct}% do espaço deste vaso usado${pct >= 85 ? ' — exclua fotos antigas para adicionar novas' : ''}`
+    : 'Adicione a primeira foto para começar a acompanhar a evolução.';
+  $('btnPlayEvolution').disabled = photos.length < 2;
 
-  if (sortedHistory.length === 0) {
-    historyEl.innerHTML = '<p style="color:#666; font-size:0.8rem;">Nenhum registro de cuidado ainda.</p>';
+  const galleryEl = $('vaseDetailGallery');
+  if (photos.length === 0) {
+    galleryEl.innerHTML = '<p class="muted" style="grid-column:1/-1;">Nenhuma foto na galeria ainda. 📷</p>';
   } else {
-    historyEl.innerHTML = sortedHistory.map(h => `
-      <div class="timeline-item">
-        <span class="timeline-date">${new Date(h.date).toLocaleDateString('pt-BR')} ${new Date(h.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
-        <div><b>${typeLabels[h.type] || h.type}:</b> ${h.notes || 'Sem observação'}</div>
-      </div>`).join('');
-  }
-
-  // GALERIA
-  const gallery = vase.photoHistory || [];
-  const galleryEl = document.getElementById('vaseDetailGallery');
-  if (gallery.length === 0) {
-    galleryEl.innerHTML = '<p style="color:#666; grid-column:1/-1; font-size:0.8rem;">Nenhuma foto na galeria.</p>';
-  } else {
-    const sortedGallery = [...gallery].sort((a, b) => new Date(b.date) - new Date(a.date));
-    galleryEl.innerHTML = sortedGallery.map(g => `
-      <div style="text-align:center;">
-        <img src="${g.photo}" style="width:100%; height:100px; object-fit:cover; border-radius:8px; border:1px solid var(--mist);" />
-        <div style="font-size:0.65rem; color:#666; margin-top:0.25rem;">${new Date(g.date).toLocaleDateString('pt-BR')}</div>
-      </div>`).join('');
+    galleryEl.innerHTML = photos.map((g, i) => `
+      <button class="gallery-thumb${i === photos.length - 1 ? ' latest' : ''}" onclick="openLightbox('${vaseId}', ${i})" aria-label="Ampliar foto ${i + 1} de ${photos.length}">
+        <img src="${esc(g.photo)}" alt="" loading="lazy" decoding="async" />
+        <span class="g-num">${i === photos.length - 1 && photos.length > 1 ? 'Atual' : '#' + (i + 1)}</span>
+        <span class="g-date">${fmtDate(g.date)}</span>
+      </button>`).join('');
   }
 }
 
@@ -1006,37 +1343,323 @@ window.addGalleryPhoto = async function(e) {
   const file = e.target.files[0];
   e.target.value = '';
   if (!file || !currentDetailVaseId) return;
+  const vase = allVases.find(v => v.firestoreId === currentDetailVaseId);
+  if (!vase) return;
 
   try {
-    const photoBase64 = await compressImage(file);
-    const vaseDoc = doc(db, "vases", currentDetailVaseId);
-    await updateDoc(vaseDoc, {
-      photo: photoBase64,
-      photoHistory: arrayUnion({ photo: photoBase64, date: new Date().toISOString() })
-    });
+    const photoBase64 = await compressImage(file, GALLERY_OPTS);
+    if (docBytes(vase) + photoBase64.length > DOC_SAFE_BYTES) {
+      toast('A galeria deste vaso está cheia. Exclua fotos antigas para adicionar novas.', 'error');
+      return;
+    }
+    await updateDoc(doc(db, "vases", currentDetailVaseId), buildPhotoAddPayload(vase, photoBase64));
+    toast('Foto adicionada à galeria 📸');
   } catch (err) {
-    alert('Erro ao adicionar foto: ' + err.message);
+    toast('Erro ao adicionar foto: ' + friendlyError(err), 'error');
   }
 };
 
-// DIAGNÓSTICO IA
+// ==================== LIGHTBOX / CARROSSEL DE EVOLUÇÃO ====================
+const lb = { open: false, vaseId: null, items: [], index: 0, playing: false, timer: null, zoomed: false, tx: 0, ty: 0, lastFocus: null };
+const ZOOM_SCALE = 2.4;
+const PLAY_MS = 1800;
+
+const photoKey = (it) => `${it.date}|${it.photo.length}`;
+
+window.openLightbox = function(vaseId, index = 0) {
+  const vase = allVases.find(v => v.firestoreId === vaseId);
+  if (!vase) return;
+  const items = vasePhotos(vase);
+  if (!items.length) return;
+
+  lb.vaseId = vaseId;
+  lb.items = items;
+  lb.index = Math.max(0, Math.min(index, items.length - 1));
+  lb.lastFocus = document.activeElement;
+  lb.open = true;
+  $('lbVase').textContent = vase.name;
+  $('lightbox').classList.add('open');
+  document.body.classList.add('no-scroll');
+  lbBuildThumbs();
+  lbRender(null);
+  $('lbPlay').style.visibility = items.length > 1 ? 'visible' : 'hidden';
+  history.pushState({ v: 'lightbox' }, '');
+};
+
+window.openLightboxLatest = function() {
+  if (currentDetailVaseId) {
+    const vase = allVases.find(v => v.firestoreId === currentDetailVaseId);
+    if (vase) openLightbox(currentDetailVaseId, vasePhotos(vase).length - 1);
+  }
+};
+
+window.openLightboxEvolution = function() {
+  if (!currentDetailVaseId) return;
+  openLightbox(currentDetailVaseId, 0);
+  if (lb.items.length > 1) lbTogglePlay(true);
+};
+
+window.closeLightbox = function(fromPopstate = false) {
+  if (!lb.open) return;
+  lbStopPlay();
+  lb.open = false;
+  lb.zoomed = false;
+  $('lightbox').classList.remove('open');
+  if (!activeDrawerId) document.body.classList.remove('no-scroll');
+  if (!fromPopstate && history.state && history.state.v === 'lightbox') history.back();
+  if (lb.lastFocus && lb.lastFocus.focus) { try { lb.lastFocus.focus({ preventScroll: true }); } catch (e) { /* ignora */ } }
+};
+
+function lbBuildThumbs() {
+  $('lbThumbs').innerHTML = lb.items.map((it, i) =>
+    `<button class="lb-thumb" data-i="${i}" aria-label="Ir para a foto ${i + 1}"><img src="${esc(it.photo)}" alt="" /></button>`).join('');
+  $('lbThumbs').style.display = lb.items.length > 1 ? '' : 'none';
+  $('lbThumbs').querySelectorAll('.lb-thumb').forEach(b => {
+    b.addEventListener('click', () => lbGo(Number(b.dataset.i), true));
+  });
+}
+
+function lbRender(direction) {
+  const it = lb.items[lb.index];
+  if (!it) return;
+  const n = lb.items.length;
+  const img = $('lbImg');
+
+  img.classList.remove('in-next', 'in-prev', 'dragging');
+  img.style.transform = '';
+  lb.zoomed = false; lb.tx = 0; lb.ty = 0;
+  $('lbStage').classList.remove('zoomed');
+  $('lbZoom').classList.remove('on');
+  img.src = it.photo;
+  if (direction) { void img.offsetWidth; img.classList.add(direction === 'next' ? 'in-next' : 'in-prev'); }
+
+  $('lbBg').style.backgroundImage = `url("${it.photo}")`;
+  $('lbCounter').textContent = `Foto ${lb.index + 1} de ${n}`;
+
+  const d = new Date(it.date);
+  $('lbDate').textContent = isNaN(d) ? '' : d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  const first = new Date(lb.items[0].date);
+  const chip = $('lbChip');
+  if (n === 1) { chip.textContent = '📸 Única foto'; chip.className = 'chipd'; }
+  else if (lb.index === 0) { chip.textContent = '🌱 Início da jornada'; chip.className = 'chipd'; }
+  else {
+    const days = Math.max(0, daysBetween(first, d));
+    chip.textContent = days === 0 ? '🌿 No mesmo dia da 1ª foto' : `🌿 +${plural(days, 'dia', 'dias')} de crescimento`;
+    chip.className = 'chipd grow';
+  }
+
+  $('lbPrev').disabled = lb.index === 0;
+  $('lbNext').disabled = lb.index === n - 1;
+
+  const dl = $('lbDownload');
+  const vase = allVases.find(v => v.firestoreId === lb.vaseId);
+  const slug = ((vase && vase.name) || 'planta').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase();
+  dl.href = it.photo;
+  dl.download = `${slug}-${isNaN(d) ? 'foto' : d.toISOString().slice(0, 10)}.jpg`;
+
+  $('lbThumbs').querySelectorAll('.lb-thumb').forEach((b, i) => {
+    const active = i === lb.index;
+    b.classList.toggle('active', active);
+    if (active && b.scrollIntoView) b.scrollIntoView({ inline: 'center', block: 'nearest', behavior: direction ? 'smooth' : 'auto' });
+  });
+
+  // Pré-carrega as vizinhas
+  [lb.index - 1, lb.index + 1].forEach(i => { if (lb.items[i]) { const p = new Image(); p.src = lb.items[i].photo; } });
+
+  lbRestartProgress();
+}
+
+function lbRestartProgress() {
+  const bar = $('lbProgress');
+  bar.classList.remove('run');
+  if (lb.playing) {
+    bar.style.setProperty('--play', PLAY_MS + 'ms');
+    void bar.offsetWidth;
+    bar.classList.add('run');
+  }
+}
+
+function lbGo(i, manual = false) {
+  if (i < 0 || i >= lb.items.length || i === lb.index) return;
+  if (manual) lbStopPlay();
+  const dir = i > lb.index ? 'next' : 'prev';
+  lb.index = i;
+  lbRender(dir);
+}
+
+window.lbPrev = function() { lbGo(lb.index - 1, true); };
+window.lbNext = function() { lbGo(lb.index + 1, true); };
+
+function lbStopPlay() {
+  lb.playing = false;
+  clearInterval(lb.timer);
+  lb.timer = null;
+  const btn = $('lbPlay');
+  btn.textContent = '▶';
+  btn.classList.remove('on');
+  $('lbProgress').classList.remove('run');
+}
+
+window.lbTogglePlay = function(forceOn) {
+  if (lb.items.length < 2) return;
+  if (lb.playing && forceOn !== true) { lbStopPlay(); return; }
+  lb.playing = true;
+  const btn = $('lbPlay');
+  btn.textContent = '⏸';
+  btn.classList.add('on');
+  clearInterval(lb.timer);
+  lb.timer = setInterval(() => {
+    const next = (lb.index + 1) % lb.items.length;
+    lb.index = next;
+    lbRender(next === 0 ? 'prev' : 'next');
+  }, PLAY_MS);
+  lbRestartProgress();
+};
+
+function lbApplyTransform(animated = true) {
+  const img = $('lbImg');
+  img.classList.toggle('dragging', !animated);
+  img.style.transform = lb.zoomed ? `translate(${lb.tx}px, ${lb.ty}px) scale(${ZOOM_SCALE})` : '';
+  $('lbStage').classList.toggle('zoomed', lb.zoomed);
+  $('lbZoom').classList.toggle('on', lb.zoomed);
+}
+
+window.lbToggleZoom = function(pt) {
+  const img = $('lbImg');
+  if (!lb.zoomed) {
+    lbStopPlay();
+    const r = img.getBoundingClientRect();
+    if (pt && typeof pt.x === 'number') {
+      lb.tx = -(pt.x - (r.left + r.width / 2)) * (ZOOM_SCALE - 1);
+      lb.ty = -(pt.y - (r.top + r.height / 2)) * (ZOOM_SCALE - 1);
+    } else { lb.tx = 0; lb.ty = 0; }
+  } else { lb.tx = 0; lb.ty = 0; }
+  lb.zoomed = !lb.zoomed;
+  lbApplyTransform(true);
+};
+
+window.lbDelete = async function() {
+  const it = lb.items[lb.index];
+  if (!it) return;
+  lbStopPlay();
+  const ok = await askConfirm('Excluir esta foto da galeria de evolução? Essa ação não pode ser desfeita.', { icon: '🗑', okLabel: 'Excluir foto' });
+  if (!ok) return;
+  try {
+    const ref = doc(db, "vases", lb.vaseId);
+    if (it.legacy) await updateDoc(ref, { photo: '' });
+    else await updateDoc(ref, { photoHistory: arrayRemove(it.raw) });
+    toast('Foto excluída.');
+  } catch (err) {
+    toast('Erro ao excluir foto: ' + friendlyError(err), 'error');
+  }
+};
+
+// Atualiza o carrossel se os dados mudarem enquanto ele está aberto (outra aba, exclusão, nova foto…)
+function lbRefreshData() {
+  if (!lb.open) return;
+  const vase = allVases.find(v => v.firestoreId === lb.vaseId);
+  const items = vase ? vasePhotos(vase) : [];
+  if (!items.length) { closeLightbox(); return; }
+
+  const same = items.length === lb.items.length && items.every((it, i) => photoKey(it) === photoKey(lb.items[i]));
+  if (same) return;
+
+  const currentKey = lb.items[lb.index] ? photoKey(lb.items[lb.index]) : null;
+  let idx = items.findIndex(it => photoKey(it) === currentKey);
+  if (idx < 0) idx = Math.min(lb.index, items.length - 1);
+  lb.items = items;
+  lb.index = idx;
+  if (items.length < 2) lbStopPlay();
+  $('lbPlay').style.visibility = items.length > 1 ? 'visible' : 'hidden';
+  lbBuildThumbs();
+  lbRender(null);
+}
+
+// Gestos: arrastar para trocar de foto, toque duplo para zoom, arrastar com zoom para mover
+(function initLightboxGestures() {
+  const stage = $('lbStage');
+  const img = $('lbImg');
+  let drag = null;
+  let lastTap = 0;
+
+  stage.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('button')) return;
+    drag = { x: e.clientX, y: e.clientY, tx: lb.tx, ty: lb.ty, moved: false, id: e.pointerId };
+    try { stage.setPointerCapture(e.pointerId); } catch (err) { /* ignora */ }
+  });
+
+  stage.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x;
+    const dy = e.clientY - drag.y;
+    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) drag.moved = true;
+    if (lb.zoomed) {
+      lb.tx = drag.tx + dx;
+      lb.ty = drag.ty + dy;
+      lbApplyTransform(false);
+    } else if (drag.moved) {
+      img.classList.add('dragging');
+      img.style.transform = `translateX(${dx}px) rotate(${dx / 60}deg)`;
+    }
+  });
+
+  const end = (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x;
+    const wasMoved = drag.moved;
+    drag = null;
+    if (lb.zoomed) { lbApplyTransform(true); return; }
+    img.classList.remove('dragging');
+
+    if (wasMoved && Math.abs(dx) > 60) {
+      img.style.transform = '';
+      if (dx < 0) lbNext(); else lbPrev();
+      return;
+    }
+    img.style.transform = '';
+
+    if (!wasMoved) {
+      const now = Date.now();
+      if (now - lastTap < 320) { lastTap = 0; lbToggleZoom({ x: e.clientX, y: e.clientY }); }
+      else lastTap = now;
+    }
+  };
+  stage.addEventListener('pointerup', end);
+  stage.addEventListener('pointercancel', () => { drag = null; img.classList.remove('dragging'); img.style.transform = lb.zoomed ? img.style.transform : ''; });
+})();
+
+// Teclado global: setas, espaço, Home/End, Esc
+document.addEventListener('keydown', (e) => {
+  if (lb.open) {
+    if (e.key === 'Escape') { e.preventDefault(); closeLightbox(); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); lbPrev(); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); lbNext(); }
+    else if (e.key === 'Home') { e.preventDefault(); lbGo(0, true); }
+    else if (e.key === 'End') { e.preventDefault(); lbGo(lb.items.length - 1, true); }
+    else if (e.key === ' ') { e.preventDefault(); lbTogglePlay(); }
+    else if (e.key === 'z' || e.key === 'Z') { lbToggleZoom(); }
+    return;
+  }
+  if (e.key === 'Escape' && activeDrawerId) closeActiveDrawer();
+});
+
+// ==================== DIAGNÓSTICO IA ====================
 window.runAIDiagnosis = async function() {
-  const resultEl = document.getElementById('aiResult');
+  const resultEl = $('aiResult');
+  const placeholder = $('aiPlaceholder');
 
-  if (!aiImageData) return alert('Selecione ou tire uma foto da planta primeiro.');
+  if (!aiImageData) { toast('Selecione ou tire uma foto da planta primeiro.', 'error'); return; }
 
-  resultEl.style.display = 'block';
-  resultEl.innerHTML = '🔍 Analisando a foto com IA, aguarde...';
+  placeholder.style.display = 'none';
+  resultEl.classList.add('show');
+  resultEl.innerHTML = '<div class="loader"><i></i><i></i><i></i> Analisando a foto com IA, aguarde…</div>';
 
   try {
     const formData = new FormData();
     formData.append('file', dataURLToBlob(aiImageData), 'diagnostico.jpg');
 
-    const response = await fetchFromWorkers('diagnose-plant', {
-      method: 'POST',
-      body: formData
-    });
-
+    const response = await fetchFromWorkers('diagnose-plant', { method: 'POST', body: formData });
     const data = await response.json();
 
     if (!response.ok) {
@@ -1044,12 +1667,22 @@ window.runAIDiagnosis = async function() {
     }
 
     resultEl.innerHTML = `
-      <h4>🩺 Relatório Agronômico:</h4>
-      <div style="white-space: pre-line; margin-top:0.8rem;">${data.diagnosis}</div>
-      <div style="margin-top:1rem; padding-top:0.8rem; border-top:1px solid var(--mist); font-size:0.85rem; color:var(--sage);">
-        🌙 Fase da Lua: <b>${data.moon_phase}</b> — ${data.moon_tip}
+      <h4>🩺 Relatório agronômico</h4>
+      <div style="white-space: pre-line; margin-top:.8rem;">${esc(data.diagnosis)}</div>
+      <div style="margin-top:1rem; padding-top:.8rem; border-top:1px solid var(--mist); font-size:.88rem; color:var(--sage);">
+        🌙 Fase da lua: <b>${esc(data.moon_phase)}</b> — ${esc(data.moon_tip)}
       </div>`;
   } catch (err) {
-    resultEl.innerHTML = `❌ Erro ao analisar a imagem: ${err.message}`;
+    resultEl.innerHTML = `❌ Erro ao analisar a imagem: ${esc(err.message)}`;
   }
 };
+
+// ==================== INICIALIZAÇÃO ====================
+updateDashboard();
+
+// Atualiza medidores de rega e saudação quando o dia vira (ou a aba fica aberta por muito tempo)
+setInterval(() => {
+  updateDashboard();
+  renderSpeciesGrid();
+  if (currentSelectedSpecies) renderVasesForSpecies(currentSelectedSpecies.firestoreId);
+}, 10 * 60 * 1000);
