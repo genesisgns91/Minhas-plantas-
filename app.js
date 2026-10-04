@@ -25,63 +25,67 @@ const db = getFirestore(app);
 const speciesCol = collection(db, "species");
 const vasesCol = collection(db, "vases");
 
-// ==================== WORKERS CLOUDFLARE (MULTI-CONTA COM FALLBACK) ====================
-// Cada Worker abaixo usa uma conta/chave de IA (Gemini) diferente. Quando a cota de uma
-// esgota (ou ela falha por qualquer motivo), o app tenta automaticamente a próxima da lista.
-// Todas sempre terminam com "/", as rotas são concatenadas nas chamadas fetch.
-const WORKER_URLS = [
-  "https://shiny-sky-21dd.genesisgns.workers.dev/",
-  "https://astro2.genesisgns.workers.dev/",
-  "https://astro-gns-proxy.genesisgns.workers.dev/"
+// ==================== WORKERS CLOUDFLARE (ORDEM FIXA DE PRIORIDADE) ====================
+// Toda chamada de IA começa SEMPRE pela primeira Worker da lista e, se ela não responder
+// (erro, cota esgotada, resposta inválida ou demora demais), passa para a próxima, na ordem.
+// Para mudar a prioridade, basta reordenar esta lista. As URLs terminam com "/".
+const WORKERS = [
+  { name: 'certificados-groq-proxy', url: 'https://certificados-groq-proxy.genesisgns.workers.dev/' },
+  { name: 'gns91-groq-proxy',        url: 'https://gns91-groq-proxy.genesisgns.workers.dev/' },
+  { name: 'forzion-gpt-proxy',       url: 'https://forzion-gpt-proxy.genesisgns.workers.dev/' },
+  { name: 'mamoot-gpt-proxy',        url: 'https://mamoot-gpt-proxy.genesisgns.workers.dev/' },
+  { name: 'astro-gns-proxy',         url: 'https://astro-gns-proxy.genesisgns.workers.dev/' },
+  { name: 'shiny-sky-21dd',          url: 'https://shiny-sky-21dd.genesisgns.workers.dev/' },
+  { name: 'astro2',                  url: 'https://astro2.genesisgns.workers.dev/' },
+  { name: 'interno',                 url: 'https://interno.genesisgns.workers.dev/' }
 ];
+const WORKER_TIMEOUT_MS = 40000;
 
-// Lembra qual Worker funcionou por último, para já começar por ela na próxima vez
-const WORKER_INDEX_KEY = 'minhasplantas_worker_index';
-let currentWorkerIndex = 0;
-try {
-  const savedIndex = Number(localStorage.getItem(WORKER_INDEX_KEY));
-  if (!Number.isNaN(savedIndex) && savedIndex >= 0 && savedIndex < WORKER_URLS.length) {
-    currentWorkerIndex = savedIndex;
-  }
-} catch (e) { /* localStorage indisponível, segue com o índice 0 */ }
+// Erro de validação do próprio pedido (400) não adianta tentar em outra conta.
+function shouldTryNextWorker(status) { return status !== 400; }
 
-function saveWorkerIndex() {
-  try { localStorage.setItem(WORKER_INDEX_KEY, String(currentWorkerIndex)); } catch (e) { /* ignora */ }
-}
+// Tenta cada Worker na ordem. `validate(data)` confere se o JSON devolvido tem o formato esperado
+// (uma Worker que responde 200 com algo inesperado também é pulada).
+// Devolve { data, worker } com a Worker que respondeu.
+async function callWorkers(path, buildOptions, validate = () => true, onAttempt = () => {}) {
+  const failures = [];
 
-// Erros de validação do próprio pedido (400) não adiantam tentar em outra conta.
-function shouldTryNextWorker(status) {
-  return status !== 400;
-}
-
-async function fetchFromWorkers(path, options) {
-  let lastResponse = null;
-
-  for (let attempt = 0; attempt < WORKER_URLS.length; attempt++) {
-    const index = (currentWorkerIndex + attempt) % WORKER_URLS.length;
-    const url = WORKER_URLS[index] + path;
+  for (let i = 0; i < WORKERS.length; i++) {
+    const w = WORKERS[i];
+    onAttempt(w, i);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), WORKER_TIMEOUT_MS);
 
     try {
-      const response = await fetch(url, options);
+      const response = await fetch(w.url + path, { ...buildOptions(), signal: ctrl.signal });
+      let data = null;
+      try { data = await response.json(); } catch (e) { /* corpo não-JSON */ }
 
-      if (response.ok) {
-        if (index !== currentWorkerIndex) {
-          currentWorkerIndex = index;
-          saveWorkerIndex();
-        }
-        return response;
+      if (response.ok && data && validate(data)) {
+        return { data, worker: w.name };
       }
 
-      lastResponse = response;
-      if (!shouldTryNextWorker(response.status)) return response;
-      console.warn(`Worker ${url} respondeu status ${response.status}, tentando a próxima conta...`);
+      const reason = !response.ok
+        ? `status ${response.status}${data && (data.error || data.detail) ? ' — ' + (data.error || data.detail) : ''}`
+        : 'resposta em formato inesperado';
+      failures.push(`${w.name}: ${reason}`);
+      console.warn(`Worker ${w.name} falhou (${reason}); tentando a próxima da lista…`);
+      if (!response.ok && !shouldTryNextWorker(response.status)) {
+        throw Object.assign(new Error((data && (data.error || data.detail)) || 'Pedido inválido.'), { final: true });
+      }
     } catch (err) {
-      console.warn(`Worker ${url} falhou (${err.message}), tentando a próxima conta...`);
+      if (err.final) throw err;
+      const reason = err.name === 'AbortError' ? 'demorou demais' : err.message;
+      failures.push(`${w.name}: ${reason}`);
+      console.warn(`Worker ${w.name} falhou (${reason}); tentando a próxima da lista…`);
+    } finally {
+      clearTimeout(timer);
     }
   }
 
-  if (lastResponse) return lastResponse;
-  throw new Error('Não foi possível conectar a nenhuma das contas de IA disponíveis. Tente novamente mais tarde.');
+  const err = new Error('Nenhuma das contas de IA respondeu agora. Tente novamente em instantes.');
+  err.details = failures;
+  throw err;
 }
 
 // ==================== ESTADO ====================
@@ -526,6 +530,7 @@ onSnapshot(speciesCol, (snapshot) => {
   allSpecies = snapshot.docs.map(d => ({ firestoreId: d.id, ...d.data() }));
   renderSpeciesGrid({ animate: firstLoad });
   updateDashboard();
+  refreshGalleryIfVisible();
   if (currentSelectedSpecies) {
     const updated = allSpecies.find(s => s.firestoreId === currentSelectedSpecies.firestoreId);
     if (updated) openSpeciesDetail(updated);
@@ -540,6 +545,7 @@ onSnapshot(vasesCol, (snapshot) => {
   updateDashboard();
   if (currentSelectedSpecies) renderVasesForSpecies(currentSelectedSpecies.firestoreId);
   if (currentDetailVaseId) renderVaseDetail(currentDetailVaseId);
+  refreshGalleryIfVisible();
   lbRefreshData();
 }, onLoadError);
 
@@ -685,7 +691,7 @@ function renderSpeciesGrid({ animate = false } = {}) {
 }
 
 // ==================== VIEWS / NAVEGAÇÃO ====================
-const VIEWS = ['sec-species', 'sec-species-detail', 'sec-ai'];
+const VIEWS = ['sec-species', 'sec-species-detail', 'sec-gallery', 'sec-ai'];
 function showView(id) {
   const wasActive = $(id).classList.contains('is-active');
   VIEWS.forEach(v => $(v).classList.toggle('is-active', v === id));
@@ -698,11 +704,16 @@ function leaveDetailUI() {
   renderSpeciesGrid({ animate: true });
 }
 
+function setNavActive(tab) {
+  document.querySelectorAll('.nav-btn[data-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+}
+
 window.switchTab = function(tab) {
   currentSelectedSpecies = null;
   if (history.state && history.state.v === 'detail') history.replaceState(null, '');
-  showView(tab === 'ai' ? 'sec-ai' : 'sec-species');
-  document.querySelectorAll('.nav-btn[data-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+  showView(tab === 'ai' ? 'sec-ai' : tab === 'gallery' ? 'sec-gallery' : 'sec-species');
+  setNavActive(tab);
+  if (tab === 'gallery') renderGallery({ animate: true });
 };
 
 window.toggleSidebar = function() {
@@ -1112,15 +1123,11 @@ window.autoFillWithAI = async function(btn) {
   btn.textContent = '✨ Consultando IA…';
 
   try {
-    const formData = new FormData();
-    formData.append('plant_name', name);
-
-    const response = await fetchFromWorkers('auto-fill-plant', { method: 'POST', body: formData });
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || 'Erro desconhecido ao consultar a IA (todas as contas indisponíveis no momento).');
-    }
+    const { data } = await callWorkers(
+      'auto-fill-plant',
+      () => { const fd = new FormData(); fd.append('plant_name', name); return { method: 'POST', body: fd }; },
+      (d) => d && (d.scientific_name || d.water_days || d.light || d.soil)
+    );
 
     $('specieScientific').value = data.scientific_name || '';
     $('fieldCategory').value = data.category || '';
@@ -1359,44 +1366,74 @@ window.addGalleryPhoto = async function(e) {
   }
 };
 
-// ==================== LIGHTBOX / CARROSSEL DE EVOLUÇÃO ====================
-const lb = { open: false, vaseId: null, items: [], index: 0, playing: false, timer: null, zoomed: false, tx: 0, ty: 0, lastFocus: null };
+// ==================== LIGHTBOX / CARROSSEL ====================
+// Duas fontes de fotos: a evolução de UM vaso (source.type = 'vase') ou a galeria geral com as
+// fotos de TODOS os vasos (source.type = 'gallery', respeita os filtros da tela de galeria).
+const lb = { open: false, source: null, items: [], index: 0, playing: false, timer: null, zoomed: false, tx: 0, ty: 0, lastFocus: null };
 const ZOOM_SCALE = 2.4;
 const PLAY_MS = 1800;
 
-const photoKey = (it) => `${it.date}|${it.photo.length}`;
+const photoKey = (it) => `${it.vaseId}|${it.date}|${it.photo.length}`;
 
-window.openLightbox = function(vaseId, index = 0) {
-  const vase = allVases.find(v => v.firestoreId === vaseId);
-  if (!vase) return;
-  const items = vasePhotos(vase);
-  if (!items.length) return;
+function vasePhotoItems(vase) {
+  const sp = speciesOfVase(vase);
+  return vasePhotos(vase).map(p => ({ ...p, vaseId: vase.firestoreId, vaseName: vase.name, speciesName: sp ? sp.name : '' }));
+}
 
-  lb.vaseId = vaseId;
+function lbBuildItems() {
+  if (!lb.source) return [];
+  if (lb.source.type === 'gallery') return galleryItems();
+  const vase = allVases.find(v => v.firestoreId === lb.source.vaseId);
+  return vase ? vasePhotoItems(vase) : [];
+}
+
+function lbStart(source, index) {
+  lb.source = source;
+  const items = lbBuildItems();
+  if (!items.length) return false;
   lb.items = items;
   lb.index = Math.max(0, Math.min(index, items.length - 1));
-  lb.lastFocus = document.activeElement;
-  lb.open = true;
-  $('lbVase').textContent = vase.name;
-  $('lightbox').classList.add('open');
-  document.body.classList.add('no-scroll');
+  if (!lb.open) {
+    lb.lastFocus = document.activeElement;
+    lb.open = true;
+    $('lightbox').classList.add('open');
+    document.body.classList.add('no-scroll');
+    history.pushState({ v: 'lightbox' }, '');
+  }
   lbBuildThumbs();
   lbRender(null);
   $('lbPlay').style.visibility = items.length > 1 ? 'visible' : 'hidden';
-  history.pushState({ v: 'lightbox' }, '');
-};
+  $('lbVaseBtn').style.display = source.type === 'gallery' ? '' : 'none';
+  return true;
+}
+
+window.openLightbox = function(vaseId, index = 0) { lbStart({ type: 'vase', vaseId }, index); };
+
+window.openGalleryLightbox = function(index = 0) { lbStart({ type: 'gallery' }, index); };
 
 window.openLightboxLatest = function() {
-  if (currentDetailVaseId) {
-    const vase = allVases.find(v => v.firestoreId === currentDetailVaseId);
-    if (vase) openLightbox(currentDetailVaseId, vasePhotos(vase).length - 1);
-  }
+  if (!currentDetailVaseId) return;
+  const vase = allVases.find(v => v.firestoreId === currentDetailVaseId);
+  if (vase) openLightbox(currentDetailVaseId, vasePhotos(vase).length - 1);
 };
 
 window.openLightboxEvolution = function() {
   if (!currentDetailVaseId) return;
   openLightbox(currentDetailVaseId, 0);
   if (lb.items.length > 1) lbTogglePlay(true);
+};
+
+// De dentro da galeria geral, pula para a evolução do vaso da foto atual
+window.lbShowVaseEvolution = function() {
+  const it = lb.items[lb.index];
+  if (!it) return;
+  lbStopPlay();
+  const vase = allVases.find(v => v.firestoreId === it.vaseId);
+  if (!vase) return;
+  const photos = vasePhotoItems(vase);
+  const idx = Math.max(0, photos.findIndex(p => photoKey(p) === photoKey(it)));
+  lbStart({ type: 'vase', vaseId: it.vaseId }, idx);
+  toast(`Evolução de ${vase.name}`);
 };
 
 window.closeLightbox = function(fromPopstate = false) {
@@ -1411,10 +1448,11 @@ window.closeLightbox = function(fromPopstate = false) {
 };
 
 function lbBuildThumbs() {
-  $('lbThumbs').innerHTML = lb.items.map((it, i) =>
-    `<button class="lb-thumb" data-i="${i}" aria-label="Ir para a foto ${i + 1}"><img src="${esc(it.photo)}" alt="" /></button>`).join('');
-  $('lbThumbs').style.display = lb.items.length > 1 ? '' : 'none';
-  $('lbThumbs').querySelectorAll('.lb-thumb').forEach(b => {
+  const box = $('lbThumbs');
+  box.innerHTML = lb.items.map((it, i) =>
+    `<button class="lb-thumb" data-i="${i}" aria-label="Ir para a foto ${i + 1}"><img src="${esc(it.photo)}" alt="" loading="lazy" /></button>`).join('');
+  box.style.display = lb.items.length > 1 ? '' : 'none';
+  box.querySelectorAll('.lb-thumb').forEach(b => {
     b.addEventListener('click', () => lbGo(Number(b.dataset.i), true));
   });
 }
@@ -1424,6 +1462,7 @@ function lbRender(direction) {
   if (!it) return;
   const n = lb.items.length;
   const img = $('lbImg');
+  const gallery = lb.source && lb.source.type === 'gallery';
 
   img.classList.remove('in-next', 'in-prev', 'dragging');
   img.style.transform = '';
@@ -1434,15 +1473,19 @@ function lbRender(direction) {
   if (direction) { void img.offsetWidth; img.classList.add(direction === 'next' ? 'in-next' : 'in-prev'); }
 
   $('lbBg').style.backgroundImage = `url("${it.photo}")`;
-  $('lbCounter').textContent = `Foto ${lb.index + 1} de ${n}`;
+  $('lbVase').textContent = it.vaseName;
+  $('lbCounter').textContent = `Foto ${lb.index + 1} de ${n}` + (gallery && it.speciesName ? ` · ${it.speciesName}` : '');
 
   const d = new Date(it.date);
   $('lbDate').textContent = isNaN(d) ? '' : d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
 
-  const first = new Date(lb.items[0].date);
+  // O "tempo de crescimento" sempre conta a partir da primeira foto DO MESMO vaso
+  const vase = allVases.find(v => v.firestoreId === it.vaseId);
+  const own = vase ? vasePhotos(vase) : [];
+  const first = own.length ? new Date(own[0].date) : d;
   const chip = $('lbChip');
-  if (n === 1) { chip.textContent = '📸 Única foto'; chip.className = 'chipd'; }
-  else if (lb.index === 0) { chip.textContent = '🌱 Início da jornada'; chip.className = 'chipd'; }
+  if (own.length <= 1) { chip.textContent = '📸 Única foto deste vaso'; chip.className = 'chipd'; }
+  else if (own[0].date === it.date && own[0].photo === it.photo) { chip.textContent = '🌱 Início da jornada'; chip.className = 'chipd'; }
   else {
     const days = Math.max(0, daysBetween(first, d));
     chip.textContent = days === 0 ? '🌿 No mesmo dia da 1ª foto' : `🌿 +${plural(days, 'dia', 'dias')} de crescimento`;
@@ -1453,8 +1496,7 @@ function lbRender(direction) {
   $('lbNext').disabled = lb.index === n - 1;
 
   const dl = $('lbDownload');
-  const vase = allVases.find(v => v.firestoreId === lb.vaseId);
-  const slug = ((vase && vase.name) || 'planta').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase();
+  const slug = (it.vaseName || 'planta').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase();
   dl.href = it.photo;
   dl.download = `${slug}-${isNaN(d) ? 'foto' : d.toISOString().slice(0, 10)}.jpg`;
 
@@ -1543,10 +1585,10 @@ window.lbDelete = async function() {
   const it = lb.items[lb.index];
   if (!it) return;
   lbStopPlay();
-  const ok = await askConfirm('Excluir esta foto da galeria de evolução? Essa ação não pode ser desfeita.', { icon: '🗑', okLabel: 'Excluir foto' });
+  const ok = await askConfirm(`Excluir esta foto de “${it.vaseName}”? Essa ação não pode ser desfeita.`, { icon: '🗑', okLabel: 'Excluir foto' });
   if (!ok) return;
   try {
-    const ref = doc(db, "vases", lb.vaseId);
+    const ref = doc(db, "vases", it.vaseId);
     if (it.legacy) await updateDoc(ref, { photo: '' });
     else await updateDoc(ref, { photoHistory: arrayRemove(it.raw) });
     toast('Foto excluída.');
@@ -1558,8 +1600,7 @@ window.lbDelete = async function() {
 // Atualiza o carrossel se os dados mudarem enquanto ele está aberto (outra aba, exclusão, nova foto…)
 function lbRefreshData() {
   if (!lb.open) return;
-  const vase = allVases.find(v => v.firestoreId === lb.vaseId);
-  const items = vase ? vasePhotos(vase) : [];
+  const items = lbBuildItems();
   if (!items.length) { closeLightbox(); return; }
 
   const same = items.length === lb.items.length && items.every((it, i) => photoKey(it) === photoKey(lb.items[i]));
@@ -1644,37 +1685,374 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && activeDrawerId) closeActiveDrawer();
 });
 
-// ==================== DIAGNÓSTICO IA ====================
-window.runAIDiagnosis = async function() {
-  const resultEl = $('aiResult');
-  const placeholder = $('aiPlaceholder');
+// ==================== GALERIA GERAL ====================
+const gal = { view: 'photos', species: 'all', sort: 'new' };
 
+// Fotos de todos os vasos (respeitando o filtro de espécie), já ordenadas — é também a fonte do carrossel geral.
+function galleryItems() {
+  const items = [];
+  allVases.forEach(v => {
+    if (gal.species !== 'all' && v.speciesId !== gal.species) return;
+    items.push(...vasePhotoItems(v));
+  });
+  const t = (x) => { const n = new Date(x.date).getTime(); return isNaN(n) ? 0 : n; };
+  items.sort((a, b) => gal.sort === 'old' ? t(a) - t(b) : t(b) - t(a));
+  return items;
+}
+
+function refreshGalleryIfVisible() {
+  const sec = $('sec-gallery');
+  if (sec && sec.classList.contains('is-active')) renderGallery();
+}
+
+window.setGalleryView = function(view) { gal.view = view; renderGallery({ animate: true }); };
+window.setGalleryFilter = function(id) { gal.species = id; renderGallery({ animate: true }); };
+window.setGallerySort = function(value) { gal.sort = value; renderGallery({ animate: true }); };
+
+window.openVaseFromGallery = function(vaseId) {
+  const vase = allVases.find(v => v.firestoreId === vaseId);
+  const sp = vase && speciesOfVase(vase);
+  if (!sp) return;
+  setNavActive('species');
+  openSpeciesDetail(sp, { fromUser: true });
+  openVaseDetail(vaseId);
+};
+
+function monthLabel(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return { key: 'sem-data', label: 'Sem data' };
+  const label = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  return { key: `${d.getFullYear()}-${d.getMonth()}`, label: label.charAt(0).toUpperCase() + label.slice(1) };
+}
+
+function renderGallery({ animate = false } = {}) {
+  const content = $('galContent');
+  if (!content) return;
+
+  if (!speciesLoaded || !vasesLoaded) {
+    content.innerHTML = '<div class="g-grid"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>';
+    return;
+  }
+
+  // Contagem de fotos por espécie (para os filtros)
+  const counts = {};
+  let totalPhotos = 0, vasesWithPhotos = 0;
+  allVases.forEach(v => {
+    const n = vasePhotos(v).length;
+    if (!n) return;
+    vasesWithPhotos++; totalPhotos += n;
+    counts[v.speciesId] = (counts[v.speciesId] || 0) + n;
+  });
+  const speciesWithPhotos = allSpecies.filter(sp => counts[sp.firestoreId]).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  if (gal.species !== 'all' && !counts[gal.species]) gal.species = 'all';
+
+  // Controles
+  document.querySelectorAll('[data-gview]').forEach(b => b.classList.toggle('active', b.dataset.gview === gal.view));
+  $('galSortWrap').style.display = gal.view === 'photos' ? '' : 'none';
+  $('galSort').value = gal.sort;
+  $('galChips').innerHTML =
+    `<button class="chip btn-chip ${gal.species === 'all' ? 'active' : ''}" onclick="setGalleryFilter('all')">🌿 Todas · ${totalPhotos}</button>` +
+    speciesWithPhotos.map(sp => `<button class="chip btn-chip ${gal.species === sp.firestoreId ? 'active' : ''}" onclick="setGalleryFilter('${sp.firestoreId}')">${esc(sp.icon || '🪴')} ${esc(sp.name)} · ${counts[sp.firestoreId]}</button>`).join('');
+
+  const shownVases = allVases.filter(v => (gal.species === 'all' || v.speciesId === gal.species) && vasePhotos(v).length);
+  const shownPhotos = gal.species === 'all' ? totalPhotos : counts[gal.species] || 0;
+  $('galStats').textContent = totalPhotos
+    ? `${plural(shownPhotos, 'foto', 'fotos')} · ${plural(shownVases.length, 'vaso', 'vasos')}${allVases.length > vasesWithPhotos ? ` · ${plural(allVases.length - vasesWithPhotos, 'vaso sem foto', 'vasos sem foto')}` : ''}`
+    : '';
+
+  if (!totalPhotos) {
+    content.innerHTML = `<div class="empty-state">${emptyPlantSvg()}<h4>Nenhuma foto por aqui ainda</h4><p>Fotografe seus vasos para acompanhar o crescimento. Elas aparecem aqui automaticamente.</p><button class="btn btn-primary" onclick="switchTab('species')">🌱 Ir para as espécies</button></div>`;
+    return;
+  }
+
+  const enter = animate ? ' enter' : '';
+
+  if (gal.view === 'vases') {
+    const sorted = [...shownVases].sort((a, b) => {
+      const sa = (speciesOfVase(a) || {}).name || '', sb = (speciesOfVase(b) || {}).name || '';
+      return sa.localeCompare(sb, 'pt-BR') || a.name.localeCompare(b.name, 'pt-BR');
+    });
+    content.innerHTML = `<div class="g-vases">${sorted.map((v, i) => {
+      const photos = vasePhotos(v);
+      const sp = speciesOfVase(v);
+      const first = new Date(photos[0].date), last = new Date(photos[photos.length - 1].date);
+      const span = Math.max(0, daysBetween(first, last));
+      const range = photos.length > 1
+        ? `${fmtDate(photos[0].date)} → ${fmtDate(photos[photos.length - 1].date)} · ${plural(span, 'dia', 'dias')} de evolução`
+        : `Foto de ${fmtDate(photos[0].date)}`;
+      return `<article class="g-vase${enter}" style="--i:${Math.min(i, 14)}">
+        <button class="g-vase-cover" onclick="openLightbox('${v.firestoreId}', ${photos.length - 1})" aria-label="Ver fotos de ${esc(v.name)}">
+          <img src="${esc(photos[photos.length - 1].photo)}" alt="" loading="lazy" decoding="async" />
+          <span class="pill hint">📸 ${photos.length}</span>
+        </button>
+        <div class="g-vase-body">
+          <h4>${esc(v.name)}</h4>
+          <p class="g-sp">${esc(sp ? sp.name : '')}</p>
+          <p class="g-range">${esc(range)}</p>
+          <div class="g-vase-actions">
+            <button class="btn btn-secondary" ${photos.length < 2 ? 'disabled' : ''} onclick="openLightbox('${v.firestoreId}', 0); lbTogglePlay(true)">▶ Evolução</button>
+            <button class="btn btn-ghost" onclick="openVaseFromGallery('${v.firestoreId}')">Abrir vaso →</button>
+          </div>
+        </div>
+      </article>`;
+    }).join('')}</div>`;
+    return;
+  }
+
+  // Visão "Fotos": agrupadas por mês, na ordem escolhida
+  const items = galleryItems();
+  const groups = [];
+  items.forEach((it, i) => {
+    const m = monthLabel(it.date);
+    let g = groups[groups.length - 1];
+    if (!g || g.key !== m.key) { g = { key: m.key, label: m.label, items: [] }; groups.push(g); }
+    g.items.push({ it, i });
+  });
+
+  content.innerHTML = groups.map(g => `
+    <section class="g-month">
+      <h4 class="g-month-title">${esc(g.label)} <span class="count">${g.items.length}</span></h4>
+      <div class="g-grid">
+        ${g.items.map(({ it, i }, k) => `
+          <button class="g-tile${k === 0 && g.items.length >= 5 ? ' big' : ''}${enter}" style="--i:${Math.min(i, 24)}" onclick="openGalleryLightbox(${i})" aria-label="Ampliar foto de ${esc(it.vaseName)} em ${fmtDate(it.date)}">
+            <img src="${esc(it.photo)}" alt="" loading="lazy" decoding="async" />
+            <span class="g-when">${fmtDate(it.date)}</span>
+            <span class="g-over"><b>${esc(it.vaseName)}</b><i>${esc(it.speciesName)}</i></span>
+          </button>`).join('')}
+      </div>
+    </section>`).join('');
+}
+
+// ==================== IA: DIAGNÓSTICO E IDENTIFICAÇÃO ====================
+let aiMode = 'diagnose'; // diagnose | identify
+let aiBusy = false;
+let lastIdentify = null;
+
+const AI_TEXT = {
+  diagnose: {
+    title: 'Diagnóstico de saúde 🩺',
+    sub: 'Envie uma foto para a IA analisar pragas, doenças ou deficiências',
+    btn: '🔍 Analisar com IA',
+    placeholder: 'O relatório aparecerá aqui depois da análise.',
+    tip: 'Dica: mostre bem a parte afetada (folhas manchadas, pontas secas, pragas) com boa luz.'
+  },
+  identify: {
+    title: 'Qual planta é essa? 🔎',
+    sub: 'Envie uma foto e a IA descobre a espécie para você',
+    btn: '🔎 Identificar planta',
+    placeholder: 'A espécie identificada aparecerá aqui.',
+    tip: 'Dica: fotografe de perto, com boa luz, mostrando as folhas e, se tiver, flores ou frutos.'
+  }
+};
+
+window.setAiMode = function(mode) {
+  if (aiBusy) return;
+  aiMode = mode;
+  const t = AI_TEXT[mode];
+  $('aiTitle').textContent = t.title;
+  $('aiSubtitle').textContent = t.sub;
+  $('aiRunBtn').textContent = t.btn;
+  $('aiPlaceholderText').textContent = t.placeholder;
+  $('aiTip').textContent = t.tip;
+  document.querySelectorAll('[data-aimode]').forEach(b => b.classList.toggle('active', b.dataset.aimode === mode));
+  $('aiResult').classList.remove('show');
+  $('aiPlaceholder').style.display = '';
+};
+
+function aiLoading() {
+  const resultEl = $('aiResult');
+  $('aiPlaceholder').style.display = 'none';
+  resultEl.classList.add('show');
+  resultEl.innerHTML = '<div class="loader"><i></i><i></i><i></i> <span id="aiLoadMsg">Analisando a foto com IA, aguarde…</span></div>';
+  return (w, i) => {
+    const el = $('aiLoadMsg');
+    if (el && i > 0) el.textContent = `Tentando outra conta de IA (${i + 1} de ${WORKERS.length})…`;
+  };
+}
+
+function aiFailure(err) {
+  const det = err.details && err.details.length
+    ? `<details class="ai-details"><summary>Ver detalhes técnicos</summary><ul>${err.details.map(d => `<li>${esc(d)}</li>`).join('')}</ul></details>` : '';
+  $('aiResult').innerHTML = `<h4>😕 Não foi possível concluir</h4><p>${esc(err.message)}</p>${det}`;
+}
+
+window.runAI = async function() {
+  if (aiBusy) return;
   if (!aiImageData) { toast('Selecione ou tire uma foto da planta primeiro.', 'error'); return; }
 
-  placeholder.style.display = 'none';
-  resultEl.classList.add('show');
-  resultEl.innerHTML = '<div class="loader"><i></i><i></i><i></i> Analisando a foto com IA, aguarde…</div>';
+  aiBusy = true;
+  const btn = $('aiRunBtn');
+  btn.disabled = true;
+  const onAttempt = aiLoading();
+  const buildOptions = () => {
+    const fd = new FormData();
+    fd.append('file', dataURLToBlob(aiImageData), 'planta.jpg');
+    return { method: 'POST', body: fd };
+  };
 
   try {
-    const formData = new FormData();
-    formData.append('file', dataURLToBlob(aiImageData), 'diagnostico.jpg');
-
-    const response = await fetchFromWorkers('diagnose-plant', { method: 'POST', body: formData });
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || 'Erro desconhecido na análise (todas as contas indisponíveis no momento).');
-    }
-
-    resultEl.innerHTML = `
-      <h4>🩺 Relatório agronômico</h4>
-      <div style="white-space: pre-line; margin-top:.8rem;">${esc(data.diagnosis)}</div>
-      <div style="margin-top:1rem; padding-top:.8rem; border-top:1px solid var(--mist); font-size:.88rem; color:var(--sage);">
-        🌙 Fase da lua: <b>${esc(data.moon_phase)}</b> — ${esc(data.moon_tip)}
-      </div>`;
+    if (aiMode === 'identify') await runIdentify(buildOptions, onAttempt);
+    else await runDiagnosis(buildOptions, onAttempt);
   } catch (err) {
-    resultEl.innerHTML = `❌ Erro ao analisar a imagem: ${esc(err.message)}`;
+    aiFailure(err);
+  } finally {
+    aiBusy = false;
+    btn.disabled = false;
   }
+};
+
+async function runDiagnosis(buildOptions, onAttempt) {
+  const { data, worker } = await callWorkers('diagnose-plant', buildOptions, (d) => d && typeof d.diagnosis === 'string' && d.diagnosis.trim(), onAttempt);
+  const moon = data.moon_phase
+    ? `<div class="ai-moon">🌙 Fase da lua: <b>${esc(data.moon_phase)}</b>${data.moon_tip ? ' — ' + esc(data.moon_tip) : ''}</div>` : '';
+  $('aiResult').innerHTML = `
+    <h4>🩺 Relatório agronômico</h4>
+    <div class="ai-text">${esc(data.diagnosis)}</div>
+    ${moon}
+    <div class="ai-via">via ${esc(worker)}</div>`;
+}
+
+// ---------- Identificação ----------
+function normText(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim(); }
+
+function looseSame(a, b) {
+  if (!a || !b) return false;
+  return a === b || (a.length >= 4 && b.includes(a)) || (b.length >= 4 && a.includes(b));
+}
+
+function findSpeciesMatch(c) {
+  const wanted = [normText(c.name), normText(c.scientific_name)].filter(Boolean);
+  return allSpecies.find(sp => {
+    const names = [sp.name, ...String(sp.scientific || '').split(/[,;/]/)].map(normText).filter(Boolean);
+    return wanted.some(w => names.some(n => looseSame(w, n)));
+  });
+}
+
+function confidencePct(c) {
+  if (typeof c === 'number') return Math.round(Math.max(0, Math.min(100, c <= 1 ? c * 100 : c)));
+  const n = parseFloat(String(c || '').replace(',', '.'));
+  if (!isNaN(n)) return confidencePct(n);
+  const t = normText(c);
+  if (t.startsWith('alta')) return 88;
+  if (t.startsWith('med')) return 62;
+  if (t.startsWith('baix')) return 35;
+  return null;
+}
+
+function normalizeIdentify(d) {
+  const main = {
+    name: d.name || d.common_name || d.plant_name || '',
+    scientific_name: d.scientific_name || d.scientific || '',
+    description: d.description || d.summary || '',
+    water_days: Number(d.water_days) || null,
+    light: d.light || '',
+    pet_toxicity: ['Segura', 'Tóxica', 'Letal'].includes(d.pet_toxicity) ? d.pet_toxicity : '',
+    confidence: confidencePct(d.confidence)
+  };
+  const alts = (Array.isArray(d.alternatives) ? d.alternatives : [])
+    .map(a => typeof a === 'string' ? { name: a } : { name: a.name || a.common_name || '', scientific_name: a.scientific_name || '' })
+    .filter(a => a.name).slice(0, 3);
+  return { is_plant: d.is_plant !== false, main, alts };
+}
+
+async function runIdentify(buildOptions, onAttempt) {
+  const { data, worker } = await callWorkers('identify-plant', buildOptions,
+    (d) => d && (d.is_plant === false || d.name || d.common_name || d.plant_name), onAttempt);
+  lastIdentify = { ...normalizeIdentify(data), worker };
+  renderIdentify();
+}
+
+function renderIdentify() {
+  const el = $('aiResult');
+  const r = lastIdentify;
+  if (!r) return;
+
+  if (!r.is_plant) {
+    el.innerHTML = `<h4>🤔 Não encontrei uma planta nessa foto</h4>
+      <p>Tente outra imagem, mais de perto e com boa luz, mostrando folhas ou flores.</p>
+      <div class="ai-via">via ${esc(r.worker)}</div>`;
+    return;
+  }
+
+  const c = r.main;
+  const match = findSpeciesMatch(c);
+  const pct = c.confidence;
+  const level = pct === null ? 'mid' : pct >= 80 ? 'high' : pct >= 50 ? 'mid' : 'low';
+
+  const tags = [];
+  if (c.water_days) tags.push(`<span class="id-tag">💧 a cada ${c.water_days} dias</span>`);
+  if (c.light) tags.push(`<span class="id-tag">☀️ ${esc(c.light)}</span>`);
+  if (c.pet_toxicity) tags.push(`<span class="id-tag">${petToxicityIcon(c.pet_toxicity)} Pets: ${esc(c.pet_toxicity)}</span>`);
+
+  const alts = r.alts.length ? `
+    <div class="id-alts"><span>Pode ser também (toque para ver):</span>
+      ${r.alts.map((a, i) => `<button class="chip btn-chip" onclick="pickIdentification(${i})">${esc(a.name)}</button>`).join('')}
+    </div>` : '';
+
+  el.innerHTML = `
+    <div class="id-card">
+      <div class="id-head">
+        <div class="id-badge" aria-hidden="true">🌿</div>
+        <div>
+          <span class="id-eyebrow">Parece ser</span>
+          <h4>${esc(c.name)}</h4>
+          ${c.scientific_name ? `<p class="id-sci">${esc(c.scientific_name)}</p>` : ''}
+        </div>
+      </div>
+      ${pct !== null ? `
+      <div class="conf ${level}">
+        <div class="conf-top"><b>Confiança</b><span>${pct}%</span></div>
+        <div class="conf-track"><i style="--pct:${pct}%"></i></div>
+        ${level === 'low' ? '<small>Confiança baixa — tente outra foto com mais detalhes de folhas, flores ou frutos.</small>' : ''}
+      </div>` : ''}
+      ${c.description ? `<p class="id-desc">${esc(c.description)}</p>` : ''}
+      ${tags.length ? `<div class="id-tags">${tags.join('')}</div>` : ''}
+      ${alts}
+      ${match ? `<div class="id-owned">✅ Você já tem esta espécie cadastrada: <b>${esc(match.name)}</b></div>` : ''}
+      <div class="id-actions">
+        ${match
+          ? `<button class="btn btn-primary" onclick="openMatchedSpecies('${match.firestoreId}')">🌱 Abrir ${esc(match.name)}</button>
+             <button class="btn btn-secondary" onclick="registerFromIdentification()">➕ Cadastrar outra</button>`
+          : `<button class="btn btn-primary" onclick="registerFromIdentification()">➕ Cadastrar espécie</button>`}
+        <button class="btn btn-ghost" onclick="setAiMode('diagnose'); runAI()">🩺 Diagnosticar saúde</button>
+      </div>
+      <div class="ai-via">via ${esc(r.worker)}</div>
+    </div>`;
+}
+
+// Troca a sugestão principal por uma das alternativas
+window.pickIdentification = function(i) {
+  if (!lastIdentify || !lastIdentify.alts[i]) return;
+  const alt = lastIdentify.alts[i];
+  const old = lastIdentify.main;
+  lastIdentify.main = { name: alt.name, scientific_name: alt.scientific_name || '', description: '', water_days: null, light: '', pet_toxicity: '', confidence: null };
+  lastIdentify.alts[i] = { name: old.name, scientific_name: old.scientific_name };
+  renderIdentify();
+};
+
+window.openMatchedSpecies = function(id) {
+  const sp = allSpecies.find(s => s.firestoreId === id);
+  if (!sp) return;
+  setNavActive('species');
+  openSpeciesDetail(sp, { fromUser: true });
+};
+
+window.registerFromIdentification = function() {
+  if (!lastIdentify || !lastIdentify.is_plant) return;
+  const c = lastIdentify.main;
+  openAddSpeciesModal();
+  $('specieName').value = c.name;
+  $('specieScientific').value = c.scientific_name || '';
+  if (c.water_days) $('specieWaterDays').value = c.water_days;
+  if (c.light) $('fieldLight').value = c.light;
+  if (c.pet_toxicity) $('fieldPetToxicity').value = c.pet_toxicity;
+  if (aiImageData) {
+    speciePhotoData = aiImageData;
+    const pv = $('speciePhotoPreview');
+    pv.src = aiImageData;
+    pv.style.display = 'block';
+  }
+  toast('Dados preenchidos! Use ✨ para completar a ficha de cuidados.');
 };
 
 // ==================== INICIALIZAÇÃO ====================

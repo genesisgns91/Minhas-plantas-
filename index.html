@@ -52,8 +52,11 @@
         <button class="nav-btn active" data-tab="species" onclick="switchTab('species')">
           <span class="nav-ico">🌱</span><span class="nav-label">Espécies & Vasos</span>
         </button>
+        <button class="nav-btn" data-tab="gallery" onclick="switchTab('gallery')">
+          <span class="nav-ico">📸</span><span class="nav-label">Galeria de fotos</span>
+        </button>
         <button class="nav-btn" data-tab="ai" onclick="switchTab('ai')">
-          <span class="nav-ico">🩺</span><span class="nav-label">Diagnóstico IA</span>
+          <span class="nav-ico">🔬</span><span class="nav-label">Diagnóstico & IA</span>
         </button>
       </nav>
 
@@ -178,12 +181,43 @@
           </div>
         </section>
 
-        <!-- ---------- DIAGNÓSTICO IA ---------- -->
-        <section id="sec-ai" class="view" aria-label="Diagnóstico por IA">
+        <!-- ---------- GALERIA GERAL ---------- -->
+        <section id="sec-gallery" class="view" aria-label="Galeria de fotos">
           <div class="header-bar">
             <div class="header-title">
-              <h2>Diagnóstico de saúde 🩺</h2>
-              <p>Envie uma foto para a IA analisar pragas, doenças ou deficiências</p>
+              <h2>Galeria de fotos 📸</h2>
+              <p id="galStats">Todas as fotos dos seus vasos num só lugar</p>
+            </div>
+            <div class="segmented" role="tablist" aria-label="Modo de visualização">
+              <button class="seg active" data-gview="photos" onclick="setGalleryView('photos')" role="tab">📷 Fotos</button>
+              <button class="seg" data-gview="vases" onclick="setGalleryView('vases')" role="tab">🪴 Por vaso</button>
+            </div>
+          </div>
+
+          <div class="toolbar gal-toolbar">
+            <div class="chips gal-chips" id="galChips" role="group" aria-label="Filtrar por espécie"></div>
+            <label class="gal-sort" id="galSortWrap">
+              <span>Ordem</span>
+              <select id="galSort" class="form-control" onchange="setGallerySort(this.value)" aria-label="Ordenar fotos">
+                <option value="new">Mais recentes</option>
+                <option value="old">Mais antigas</option>
+              </select>
+            </label>
+          </div>
+
+          <div id="galContent"><div class="g-grid"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div></div>
+        </section>
+
+        <!-- ---------- DIAGNÓSTICO E IDENTIFICAÇÃO (IA) ---------- -->
+        <section id="sec-ai" class="view" aria-label="Diagnóstico e identificação por IA">
+          <div class="header-bar">
+            <div class="header-title">
+              <h2 id="aiTitle">Diagnóstico de saúde 🩺</h2>
+              <p id="aiSubtitle">Envie uma foto para a IA analisar pragas, doenças ou deficiências</p>
+            </div>
+            <div class="segmented" role="tablist" aria-label="Modo da IA">
+              <button class="seg active" data-aimode="diagnose" onclick="setAiMode('diagnose')" role="tab">🩺 Diagnóstico</button>
+              <button class="seg" data-aimode="identify" onclick="setAiMode('identify')" role="tab">🔎 Identificar planta</button>
             </div>
           </div>
           <div class="ai-layout">
@@ -203,13 +237,14 @@
                   </label>
                 </div>
               </div>
-              <button class="btn btn-primary" style="width:100%; margin-top:1rem; padding:1rem;" onclick="runAIDiagnosis()">🔍 Analisar com IA</button>
+              <p class="ai-tip" id="aiTip">Dica: mostre bem a parte afetada (folhas manchadas, pontas secas, pragas) com boa luz.</p>
+              <button class="btn btn-primary ai-run" id="aiRunBtn" onclick="runAI()">🔍 Analisar com IA</button>
             </div>
             <div>
               <div class="ai-placeholder" id="aiPlaceholder">
-                <div><div style="font-size:2.6rem;">🌿</div><p style="margin-top:.5rem;">O relatório aparecerá aqui depois da análise.</p></div>
+                <div><div style="font-size:2.6rem;">🌿</div><p style="margin-top:.5rem;" id="aiPlaceholderText">O relatório aparecerá aqui depois da análise.</p></div>
               </div>
-              <div id="aiResult" class="ai-result"></div>
+              <div id="aiResult" class="ai-result" aria-live="polite"></div>
             </div>
           </div>
         </section>
@@ -221,8 +256,9 @@
   <!-- ============ NAVEGAÇÃO MOBILE ============ -->
   <nav class="bottom-nav" aria-label="Navegação principal">
     <button class="nav-btn active" data-tab="species" onclick="switchTab('species')"><span class="nav-ico">🌱</span>Espécies</button>
+    <button class="nav-btn" data-tab="gallery" onclick="switchTab('gallery')"><span class="nav-ico">📸</span>Galeria</button>
     <button class="fab" onclick="openAddSpeciesModal()" aria-label="Nova espécie">+</button>
-    <button class="nav-btn" data-tab="ai" onclick="switchTab('ai')"><span class="nav-ico">🩺</span>Diagnóstico</button>
+    <button class="nav-btn" data-tab="ai" onclick="switchTab('ai')"><span class="nav-ico">🔬</span>IA</button>
   </nav>
 
   <!-- ============ DRAWER: ESPÉCIE ============ -->
@@ -497,6 +533,7 @@
     <div class="lb-top">
       <div class="lb-title"><strong id="lbVase"></strong><span id="lbCounter"></span></div>
       <div class="lb-actions">
+        <button class="lb-btn" id="lbVaseBtn" onclick="lbShowVaseEvolution()" aria-label="Ver evolução deste vaso" title="Ver evolução deste vaso" style="display:none">🪴</button>
         <button class="lb-btn" id="lbPlay" onclick="lbTogglePlay()" aria-label="Reproduzir evolução" title="Reproduzir evolução (espaço)">▶</button>
         <button class="lb-btn" id="lbZoom" onclick="lbToggleZoom()" aria-label="Zoom" title="Zoom (toque duplo)">🔍</button>
         <a class="lb-btn" id="lbDownload" aria-label="Baixar foto" title="Baixar foto" download="planta.jpg" style="text-decoration:none; color:inherit;">⬇</a>
