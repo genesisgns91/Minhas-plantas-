@@ -877,6 +877,11 @@ function renderAlertsPanel() {
 
   $('alertsClear').hidden = selected.length === 0;
 
+  const total = alerts.length;
+  const totalEl = $('alertsTotal');
+  totalEl.textContent = (total ? plural(total, 'alerta', 'alertas') : 'Tudo em dia ✓') + (selected.length ? ' · filtrando' : '');
+  totalEl.classList.toggle('zero', total === 0);
+
   const shown = selected.length ? selected : ALERT_KINDS;
   const limit = selected.length ? 6 : 3;
   const rows = [];
@@ -919,6 +924,27 @@ function renderAlertsPanel() {
     goto.hidden = true;
   }
 }
+
+// ---------- Expandir / recolher o bloco de alertas ----------
+const ALERTS_COLLAPSED_KEY = 'minhasplantas_alerts_collapsed';
+let alertsCollapsed = false;
+try { alertsCollapsed = localStorage.getItem(ALERTS_COLLAPSED_KEY) === '1'; } catch (e) { /* ignora */ }
+
+function applyAlertsCollapsed() {
+  const panel = $('alertsPanel');
+  if (!panel) return;
+  panel.classList.toggle('collapsed', alertsCollapsed);
+  $('alertsToggle').setAttribute('aria-expanded', String(!alertsCollapsed));
+  const body = $('alertsBody');
+  body.setAttribute('aria-hidden', String(alertsCollapsed));
+  body.inert = alertsCollapsed; // tira os botões escondidos da navegação por teclado
+}
+
+window.toggleAlertsPanel = function() {
+  alertsCollapsed = !alertsCollapsed;
+  try { localStorage.setItem(ALERTS_COLLAPSED_KEY, alertsCollapsed ? '1' : '0'); } catch (e) { /* ignora */ }
+  applyAlertsCollapsed();
+};
 
 window.scrollToSpeciesGrid = function() {
   const el = document.querySelector('#sec-species .toolbar');
@@ -2419,6 +2445,7 @@ window.registerFromIdentification = function() {
 };
 
 // ==================== INICIALIZAÇÃO ====================
+applyAlertsCollapsed();
 updateDashboard();
 
 // Atualiza medidores de rega e saudação quando o dia vira (ou a aba fica aberta por muito tempo)

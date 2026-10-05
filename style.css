@@ -784,9 +784,22 @@ textarea.form-control { resize: vertical; min-height: 70px; }
 /* =====================================================================
    BLOCO DE ALERTAS (abas que filtram as plantas)
    ===================================================================== */
-.alerts-panel .panel-title { justify-content: space-between; }
-.al-clear { margin-left: auto; }
-.alert-tabs { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .8rem; }
+.al-head { display: flex; align-items: center; gap: .5rem; }
+.al-toggle { flex: 1; min-width: 0; display: flex; align-items: center; gap: .7rem; padding: .15rem .1rem; border: none; background: none; cursor: pointer; font: inherit; color: inherit; text-align: left; border-radius: 12px; }
+.al-title { display: inline-flex; align-items: center; gap: .5rem; font-family: 'Playfair Display', serif; font-size: 1.1rem; color: var(--moss); }
+.al-total { margin-left: auto; padding: .28rem .8rem; border-radius: 999px; background: var(--terra); color: #fff; font-size: .76rem; font-weight: 800; white-space: nowrap; box-shadow: 0 3px 10px rgba(193, 110, 65, .35); transition: background .3s, transform .3s var(--ease-spring); }
+.al-total.zero { background: var(--mist-2); color: var(--ok); box-shadow: none; border: 1px solid var(--mist); }
+.al-toggle:hover .al-total { transform: scale(1.05); }
+.al-chevron { flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%; background: var(--mist-2); position: relative; transition: transform .45s var(--ease-spring), background .25s; }
+.al-chevron::before { content: ''; position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; margin: -6px 0 0 -4px; border-right: 2.5px solid var(--moss); border-bottom: 2.5px solid var(--moss); border-radius: 1px; transform: rotate(-135deg) translate(-1px, -1px); }
+.al-toggle:hover .al-chevron { background: var(--mist); }
+.alerts-panel.collapsed .al-chevron { transform: rotate(180deg); }
+.al-clear { flex-shrink: 0; }
+.al-collapse { display: grid; grid-template-rows: 1fr; margin-top: .85rem; transition: grid-template-rows .5s var(--ease), margin-top .5s var(--ease); }
+.al-collapse-inner { min-height: 0; overflow: hidden; margin-inline: -4px; padding-inline: 4px; }
+.alerts-panel.collapsed .al-collapse { grid-template-rows: 0fr; margin-top: 0; }
+.alerts-panel.collapsed .al-collapse-inner { visibility: hidden; transition: visibility 0s .5s; }
+.alert-tabs { display: flex; flex-wrap: wrap; gap: .5rem; padding-block: 4px 10px; }
 .al-tab { position: relative; display: inline-flex; align-items: center; gap: .45rem; padding: .5rem .8rem; border: 1.5px solid var(--mist); background: var(--paper); color: var(--moss); border-radius: 18px 5px 18px 5px; font-family: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; user-select: none; transition: border-radius .55s var(--ease-spring), background .3s, color .3s, border-color .3s, box-shadow .3s, transform .3s var(--ease); }
 .al-tab:hover { border-color: var(--k); transform: translateY(-2px); }
 .al-tab:active { transform: scale(.95); }

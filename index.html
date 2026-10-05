@@ -117,13 +117,22 @@
           </div>
 
           <div class="dash-row">
-            <div class="panel reminders-section alerts-panel">
-              <div class="panel-title"><span>🔔</span> Alertas de cuidados
+            <div class="panel reminders-section alerts-panel" id="alertsPanel">
+              <div class="al-head">
+                <button type="button" class="al-toggle" id="alertsToggle" onclick="toggleAlertsPanel()" aria-expanded="true" aria-controls="alertsBody" title="Expandir ou recolher os alertas">
+                  <span class="al-title"><span>🔔</span> Alertas de cuidados</span>
+                  <span class="al-total" id="alertsTotal">…</span>
+                  <span class="al-chevron" aria-hidden="true"></span>
+                </button>
                 <button class="af-clear al-clear" id="alertsClear" onclick="clearAlertFilters()" hidden>Limpar</button>
               </div>
-              <div class="alert-tabs" id="alertTabs" role="group" aria-label="Filtrar plantas por tipo de alerta"></div>
-              <button class="al-goto" id="alertsGoto" onclick="scrollToSpeciesGrid()" hidden></button>
-              <div id="remindersList" class="alert-list" aria-live="polite"><p class="muted">Carregando alertas…</p></div>
+              <div class="al-collapse" id="alertsBody">
+                <div class="al-collapse-inner">
+                  <div class="alert-tabs" id="alertTabs" role="group" aria-label="Filtrar plantas por tipo de alerta"></div>
+                  <button class="al-goto" id="alertsGoto" onclick="scrollToSpeciesGrid()" hidden></button>
+                  <div id="remindersList" class="alert-list" aria-live="polite"><p class="muted">Carregando alertas…</p></div>
+                </div>
+              </div>
             </div>
             <div class="panel tip-panel">
               <div class="panel-title"><span>🌸</span> Sabia que?</div>
