@@ -110,16 +110,20 @@
               <div class="stat-icon">💧</div>
               <div class="stat-info"><div class="value" id="statWateredToday">0</div><div class="label">Regados hoje</div></div>
             </div>
-            <div class="stat-card alert" id="statNeedCard">
+            <button type="button" class="stat-card alert" id="statNeedCard" onclick="filterNeedWater()" aria-pressed="false" aria-label="Filtrar plantas que precisam de rega">
               <div class="stat-icon">🔔</div>
-              <div class="stat-info"><div class="value" id="statNeedWater">0</div><div class="label">Precisam de rega</div></div>
-            </div>
+              <div class="stat-info"><div class="value" id="statNeedWater">0</div><div class="label">Precisam de rega</div><div class="stat-hint" id="statNeedHint">toque para ver as plantas</div></div>
+            </button>
           </div>
 
           <div class="dash-row">
-            <div class="panel reminders-section">
-              <div class="panel-title"><span>⏰</span> Lembretes e tarefas próximas</div>
-              <div id="remindersList"><p class="muted">Nenhum lembrete próximo no momento.</p></div>
+            <div class="panel reminders-section alerts-panel">
+              <div class="panel-title"><span>🔔</span> Alertas de cuidados
+                <button class="af-clear al-clear" id="alertsClear" onclick="clearAlertFilters()" hidden>Limpar</button>
+              </div>
+              <div class="alert-tabs" id="alertTabs" role="group" aria-label="Filtrar plantas por tipo de alerta"></div>
+              <button class="al-goto" id="alertsGoto" onclick="scrollToSpeciesGrid()" hidden></button>
+              <div id="remindersList" class="alert-list" aria-live="polite"><p class="muted">Carregando alertas…</p></div>
             </div>
             <div class="panel tip-panel">
               <div class="panel-title"><span>🌸</span> Sabia que?</div>
@@ -401,6 +405,8 @@
             <div class="form-group"><label for="fieldHumidity">Umidade do ar</label><input type="text" id="fieldHumidity" class="form-control" placeholder="Ex: Alta umidade (>60%)" /></div>
             <div class="form-group"><label for="fieldSoil">Tipo de solo</label><input type="text" id="fieldSoil" class="form-control" placeholder="Ex: Drenável e orgânico" /></div>
             <div class="form-group"><label for="fieldFertilizer">Adubação comercial</label><input type="text" id="fieldFertilizer" class="form-control" placeholder="Ex: NPK 10-10-10 mensal" /></div>
+            <div class="form-group"><label for="specieFertDays">Adubar a cada (dias)</label><input type="number" min="1" id="specieFertDays" class="form-control" placeholder="30" /><small>Gera alerta de adubo quando passar do prazo.</small></div>
+            <div class="form-group"><label for="speciePruneDays">Podar a cada (dias)</label><input type="number" min="1" id="speciePruneDays" class="form-control" placeholder="90" /><small>Gera alerta de poda quando passar do prazo.</small></div>
             <div class="form-group span-2"><label for="fieldNaturalFertilizer">Adubação natural</label><input type="text" id="fieldNaturalFertilizer" class="form-control" placeholder="Ex: Chá de casca de banana" /></div>
             <div class="form-group span-2"><label for="fieldExtraTips">Dica extra</label><textarea id="fieldExtraTips" class="form-control" rows="2" placeholder="Ex: Limpar folhas com pano úmido"></textarea></div>
             <div class="form-group span-2"><label for="fieldObservations">Observações & o que evitar</label><textarea id="fieldObservations" class="form-control" rows="2" placeholder="Ex: Evitar solo encharcado"></textarea></div>

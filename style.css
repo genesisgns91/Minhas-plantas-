@@ -267,6 +267,12 @@ body.sidebar-collapsed .side-nav { width: 100%; }
 .stat-card.alert .stat-icon { background: #fdeede; }
 .stat-info .value { font-family: 'Playfair Display', serif; font-size: 1.9rem; font-weight: 700; color: var(--moss); line-height: 1; }
 .stat-info .label { font-size: .76rem; color: var(--ink-soft); font-weight: 600; margin-top: .25rem; }
+.stat-card.alert { width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.stat-card.alert:active { transform: scale(.98); }
+.stat-hint { font-size: .66rem; font-weight: 600; color: var(--sage); margin-top: .3rem; opacity: .85; transition: color .25s; }
+.stat-card.alert.has-alert .stat-hint { color: var(--terra); }
+.stat-card.alert.filtering { border-color: var(--terra); box-shadow: 0 0 0 3px rgba(193, 110, 65, .22), var(--shadow); background: linear-gradient(150deg, #fff6ef, var(--paper) 70%); }
+.stat-card.alert.filtering .stat-icon { background: var(--terra); }
 .stat-card.alert.has-alert { border-color: rgba(217, 154, 43, .45); }
 .stat-card.alert.has-alert .value { color: var(--terra); }
 .stat-card.alert.has-alert .stat-icon { animation: wiggle 2.6s ease-in-out infinite; }
@@ -773,6 +779,45 @@ textarea.form-control { resize: vertical; min-height: 70px; }
   .burger { padding: .72rem .95rem; }
   .toolbar .search-box-wrap { flex: 1 1 150px; }
   .f-header { border-radius: 26px 26px 0 0; }
+}
+
+/* =====================================================================
+   BLOCO DE ALERTAS (abas que filtram as plantas)
+   ===================================================================== */
+.alerts-panel .panel-title { justify-content: space-between; }
+.al-clear { margin-left: auto; }
+.alert-tabs { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .8rem; }
+.al-tab { position: relative; display: inline-flex; align-items: center; gap: .45rem; padding: .5rem .8rem; border: 1.5px solid var(--mist); background: var(--paper); color: var(--moss); border-radius: 18px 5px 18px 5px; font-family: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; user-select: none; transition: border-radius .55s var(--ease-spring), background .3s, color .3s, border-color .3s, box-shadow .3s, transform .3s var(--ease); }
+.al-tab:hover { border-color: var(--k); transform: translateY(-2px); }
+.al-tab:active { transform: scale(.95); }
+.al-tab .n { min-width: 22px; padding: .08rem .45rem; border-radius: 99px; background: var(--mist-2); color: var(--k); font-size: .72rem; font-weight: 800; text-align: center; transition: background .3s, color .3s; }
+.al-tab.zero { opacity: .55; }
+.al-tab.on { background: var(--k); border-color: var(--k); color: #fff; border-radius: 5px 18px 5px 18px; box-shadow: 0 6px 16px rgba(28, 36, 27, .22); opacity: 1; }
+.al-tab.on .n { background: rgba(255, 255, 255, .26); color: #fff; }
+.al-goto { display: block; width: 100%; margin: -.2rem 0 .7rem; padding: .55rem .8rem; border: 1px dashed var(--sage); background: var(--mist-2); color: var(--moss); border-radius: 12px; font-family: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; transition: background .2s, transform .2s var(--ease); }
+.al-goto[hidden] { display: none; }
+.al-goto:hover { background: var(--mist); transform: translateY(1px); }
+.alert-list { max-height: 380px; overflow-y: auto; padding-right: .2rem; }
+.alert-item { display: flex; align-items: center; gap: .6rem; padding: .5rem .55rem .5rem .6rem; margin-bottom: .45rem; background: var(--cream); border-radius: 14px; border-left: 4px solid var(--k, var(--sage)); transition: transform .2s var(--ease), background .2s; }
+.alert-item:hover { transform: translateX(3px); background: var(--mist-2); }
+.alert-item.late .al-sub { color: var(--red-alert); font-weight: 700; }
+.al-badge { width: 34px; height: 34px; flex-shrink: 0; display: grid; place-items: center; background: #fff; border-radius: 11px; font-size: 1.05rem; box-shadow: var(--shadow-sm); }
+.al-main { flex: 1; min-width: 0; display: block; text-align: left; border: none; background: none; padding: 0; cursor: pointer; font-family: inherit; color: var(--ink); line-height: 1.35; }
+.al-main b { font-size: .86rem; }
+.al-main i { font-style: normal; font-size: .78rem; color: var(--sage); font-weight: 600; }
+.al-text { display: block; font-size: .8rem; font-weight: 700; color: var(--k, var(--moss)); }
+.al-sub { display: block; font-size: .72rem; color: var(--ink-soft); }
+.al-act { flex-shrink: 0; border: none; cursor: pointer; font-family: inherit; font-size: .74rem; font-weight: 700; padding: .45rem .75rem; border-radius: 999px; background: var(--k, var(--moss)); color: #fff; transition: transform .25s var(--ease-spring), box-shadow .25s, opacity .2s; }
+.al-act:hover { transform: translateY(-1px) scale(1.04); box-shadow: 0 4px 12px rgba(28, 36, 27, .25); }
+.al-act:active { transform: scale(.94); }
+.al-empty, .al-more { text-align: center; padding: .6rem 0 .2rem; }
+
+/* O bloco "Sabia que?" não aparece no celular */
+@media (max-width: 768px) {
+  .tip-panel { display: none; }
+  .alert-list { max-height: none; }
+  .al-tab { flex: 1 1 calc(50% - .5rem); justify-content: center; }
+  .al-act { padding: .5rem .7rem; }
 }
 
 /* =====================================================================

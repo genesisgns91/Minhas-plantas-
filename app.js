@@ -496,8 +496,11 @@ function wateredToday(v) { return !!v.lastWater && daysBetween(new Date(v.lastWa
 
 function getFilterGroups(withCounts = true) {
   const groups = [
+    { id: 'alert', icon: '🔔', title: 'Alertas', hint: 'tarefas pendentes', opts: ALERT_KINDS.map(k => ({
+      id: k.id, icon: k.filterIcon, label: k.id === 'water' ? 'Precisam de rega' : k.id === 'fertilizer' ? 'Precisam de adubo' : k.id === 'pruning' ? 'Precisam de poda' : 'Com lembretes',
+      test: (sp, vs) => vs.some(v => vaseAlerts(v, sp).some(a => a.kind === k.id))
+    })) },
     { id: 'water', icon: '💧', title: 'Rega', hint: 'de qualquer vaso', opts: [
-      { id: 'thirsty', icon: '🚿', label: 'Precisam de rega', test: (sp, vs) => vs.some(v => needsWater(v, sp)) },
       { id: 'today', icon: '💦', label: 'Regadas hoje', test: (sp, vs) => vs.some(wateredToday) },
       { id: 'ok', icon: '✅', label: 'Em dia', test: (sp, vs) => vs.length > 0 && vs.every(v => v.lastWater && !needsWater(v, sp)) },
       { id: 'never', icon: '❓', label: 'Sem rega registrada', test: (sp, vs) => vs.some(v => !v.lastWater) }
@@ -636,10 +639,18 @@ function refreshFilterChrome() {
   }
   document.querySelectorAll('.chip[data-filter]').forEach(c => {
     const f = c.dataset.filter;
-    const on = f === 'all' ? n === 0 : f === 'thirsty' ? activeFilters.has('water:thirsty') : activeFilters.has('pet:Segura');
+    const on = f === 'all' ? n === 0 : f === 'thirsty' ? activeFilters.has('alert:water') : activeFilters.has('pet:Segura');
     c.classList.toggle('active', on);
   });
   renderActiveStrip();
+  const bell = $('statNeedCard');
+  if (bell) {
+    const on = activeFilters.has('alert:water');
+    bell.classList.toggle('filtering', on);
+    bell.setAttribute('aria-pressed', String(on));
+    $('statNeedHint').textContent = on ? 'filtrando · toque para limpar' : 'toque para ver as plantas';
+  }
+  if (speciesLoaded) renderAlertsPanel();
   if (activeDrawerId === 'drawerFilters') renderFilterPanel({ animate: false });
 }
 
@@ -665,7 +676,7 @@ window.clearFilters = function() { activeFilters.clear(); applyFilters(); };
 window.setFilter = function(mode) {
   if (mode === 'all') activeFilters.clear();
   else {
-    const key = mode === 'thirsty' ? 'water:thirsty' : 'pet:Segura';
+    const key = mode === 'thirsty' ? 'alert:water' : 'pet:Segura';
     if (activeFilters.has(key)) activeFilters.delete(key); else activeFilters.add(key);
   }
   applyFilters();
@@ -756,26 +767,80 @@ function relativeWhen(d) {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + time;
 }
 
+// ---------- Alertas de cuidado (rega, adubo, poda, lembretes) ----------
+const ALERT_KINDS = [
+  { id: 'water',      icon: '💧', short: 'Rega',      filterIcon: '🚿', color: '#4f9bbd', care: 'lastWater',      verb: 'Regar' },
+  { id: 'fertilizer', icon: '🧪', short: 'Adubo',     filterIcon: '🧪', color: '#b38b4d', care: 'lastFertilizer', verb: 'Adubar' },
+  { id: 'pruning',    icon: '✂️', short: 'Poda',      filterIcon: '✂️', color: '#5f8b57', care: 'lastPruning',    verb: 'Podar' },
+  { id: 'reminder',   icon: '⏰', short: 'Lembretes', filterIcon: '⏰', color: '#c16e41', care: null,             verb: '' }
+];
+const DEFAULT_FERT_DAYS = 30;
+const DEFAULT_PRUNE_DAYS = 90;
+
+// Alertas de UM vaso. Adubo e poda só alertam quando já existe um registro anterior vencido
+// (sem nenhum registro não há como saber se está atrasado).
+function vaseAlerts(vase, species) {
+  const now = new Date();
+  const out = [];
+
+  const ws = waterStatus(vase, species);
+  if (ws.state === 'due' || ws.state === 'late') {
+    const due = Math.max(1, Number(species && species.waterDays) || 5);
+    const over = daysBetween(new Date(vase.lastWater), now) - due;
+    out.push({ kind: 'water', vase, species, text: ws.title, sub: ws.sub, rank: over });
+  }
+
+  [['fertilizer', 'lastFertilizer', 'fertilizerDays', DEFAULT_FERT_DAYS, 'adubação'],
+   ['pruning', 'lastPruning', 'pruningDays', DEFAULT_PRUNE_DAYS, 'poda']].forEach(([kind, field, dayField, def, noun]) => {
+    if (!vase[field]) return;
+    const d = new Date(vase[field]);
+    if (isNaN(d)) return;
+    const every = Math.max(1, Number(species && species[dayField]) || def);
+    const days = daysBetween(d, now);
+    if (days < every) return;
+    const over = days - every;
+    out.push({ kind, vase, species, rank: over,
+      text: over === 0 ? `Hora da ${noun}!` : `${noun.charAt(0).toUpperCase() + noun.slice(1)} atrasada ${plural(over, 'dia', 'dias')}`,
+      sub: `última ${noun} há ${plural(days, 'dia', 'dias')} · ciclo de ${every}` });
+  });
+
+  (vase.history || []).forEach(h => {
+    const d = new Date(h.date);
+    if (isNaN(d)) return;
+    const upcoming = d >= now;
+    const missed = h.type === 'lembrete' && d < now && (now - d) < 7 * DAY_MS;
+    if (upcoming || missed) {
+      out.push({ kind: 'reminder', vase, species, late: !upcoming, when: d, rank: -d.getTime(),
+        text: h.notes || 'Lembrete agendado', sub: (!upcoming ? '⚠ atrasado · ' : '') + relativeWhen(d) });
+    }
+  });
+  return out;
+}
+
+function collectAlerts() {
+  const all = [];
+  allVases.forEach(v => {
+    const sp = speciesOfVase(v);
+    if (sp) all.push(...vaseAlerts(v, sp));
+  });
+  all.sort((a, b) => b.rank - a.rank);
+  return all;
+}
+
 function updateDashboard() {
   const now = new Date();
   $('statSpeciesCount').textContent = allSpecies.length;
   $('statPotsCount').textContent = allVases.length;
 
   const wateredTodayPots = new Set();
-  const reminders = [];
-
   allVases.forEach(vase => {
     (vase.history || []).forEach(h => {
       const d = new Date(h.date);
-      if (isNaN(d)) return;
-      if (h.type === 'lastWater' && daysBetween(d, now) === 0 && d <= now) wateredTodayPots.add(vase.firestoreId);
-      const upcoming = d >= now;
-      const recentlyMissed = h.type === 'lembrete' && d < now && (now - d) < 7 * DAY_MS;
-      if (upcoming || recentlyMissed) reminders.push({ vaseName: vase.name, late: !upcoming, ...h, _d: d });
+      if (!isNaN(d) && h.type === 'lastWater' && daysBetween(d, now) === 0 && d <= now) wateredTodayPots.add(vase.firestoreId);
     });
   });
 
-  const need = allVases.filter(v => needsWater(v, speciesOfVase(v))).length;
+  const need = collectAlerts().filter(a => a.kind === 'water').length;
   $('statWateredToday').textContent = wateredTodayPots.size;
   $('statNeedWater').textContent = need;
   $('statNeedCard').classList.toggle('has-alert', need > 0);
@@ -790,19 +855,106 @@ function updateDashboard() {
     : need > 0 ? `${plural(need, 'vaso precisa', 'vasos precisam')} de água hoje. 💧`
     : 'Tudo em dia — suas plantas agradecem! 💚';
 
-  // Lembretes
+  renderAlertsPanel();
+}
+
+// ---------- Bloco de alertas: abas que filtram as plantas + lista de tarefas ----------
+function renderAlertsPanel() {
+  const tabs = $('alertTabs');
   const list = $('remindersList');
-  if (reminders.length === 0) {
-    list.innerHTML = '<p class="muted">Nenhum lembrete próximo. Agende um pelo botão “Registro retroativo / lembrete” de um vaso.</p>';
+  if (!tabs || !list) return;
+
+  const alerts = collectAlerts();
+  const byKind = {};
+  ALERT_KINDS.forEach(k => { byKind[k.id] = alerts.filter(a => a.kind === k.id); });
+  const selected = ALERT_KINDS.filter(k => activeFilters.has(`alert:${k.id}`));
+
+  tabs.innerHTML = ALERT_KINDS.map(k => {
+    const n = byKind[k.id].length;
+    const on = activeFilters.has(`alert:${k.id}`);
+    return `<button class="al-tab${on ? ' on' : ''}${n === 0 ? ' zero' : ''}" style="--k:${k.color}" aria-pressed="${on}" onclick="toggleAlertFilter('${k.id}', this)"><span class="al-ico">${k.icon}</span><span>${k.short}</span><span class="n">${n}</span></button>`;
+  }).join('');
+
+  $('alertsClear').hidden = selected.length === 0;
+
+  const shown = selected.length ? selected : ALERT_KINDS;
+  const limit = selected.length ? 6 : 3;
+  const rows = [];
+  let hidden = 0;
+  shown.forEach(k => {
+    const items = byKind[k.id];
+    items.slice(0, limit).forEach(a => rows.push(a));
+    hidden += Math.max(0, items.length - limit);
+  });
+
+  if (!alerts.length) {
+    list.innerHTML = '<p class="muted al-empty">🌱 Tudo em dia! Nenhum alerta de rega, adubo, poda ou lembrete.</p>';
+  } else if (!rows.length) {
+    list.innerHTML = '<p class="muted al-empty">Nenhum alerta nesta categoria agora. 🎉</p>';
   } else {
-    reminders.sort((a, b) => a._d - b._d);
-    list.innerHTML = reminders.slice(0, 6).map(r => `
-      <div class="reminder-item ${r.late ? 'late' : ''}">
-        <div><b>${esc(r.vaseName)}:</b> ${esc(r.notes || 'Lembrete agendado')}</div>
-        <span class="reminder-when">${r.late ? '⚠ atrasado · ' : ''}${esc(relativeWhen(r._d))}</span>
-      </div>`).join('');
+    list.innerHTML = rows.map(a => {
+      const k = ALERT_KINDS.find(x => x.id === a.kind);
+      const act = k.care
+        ? `<button class="al-act" onclick="recordCareQuick('${a.vase.firestoreId}', '${k.care}', this)" aria-label="${k.verb} ${esc(a.vase.name)}">${k.icon} ${k.verb}</button>`
+        : '';
+      return `<div class="alert-item k-${a.kind}${a.late ? ' late' : ''}" style="--k:${k.color}">
+        <span class="al-badge" aria-hidden="true">${k.icon}</span>
+        <button class="al-main" onclick="openVaseFromGallery('${a.vase.firestoreId}')">
+          <b>${esc(a.vase.name)}</b><i> · ${esc(a.species.name)}</i>
+          <span class="al-text">${esc(a.text)}</span>
+          <span class="al-sub">${esc(a.sub)}</span>
+        </button>
+        ${act}
+      </div>`;
+    }).join('') + (hidden ? `<p class="muted al-more">+ ${plural(hidden, 'alerta', 'alertas')} — toque numa aba para ver todos</p>` : '');
+  }
+
+  // Atalho para ver as plantas filtradas
+  const goto = $('alertsGoto');
+  if (selected.length) {
+    const n = filteredSpecies().length;
+    goto.hidden = false;
+    goto.textContent = n === 0 ? 'Nenhuma planta com esse alerta' : `↓ Ver ${plural(n, 'planta filtrada', 'plantas filtradas')}`;
+  } else {
+    goto.hidden = true;
   }
 }
+
+window.scrollToSpeciesGrid = function() {
+  const el = document.querySelector('#sec-species .toolbar');
+  if (el && el.scrollIntoView) el.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
+};
+
+window.toggleAlertFilter = function(kind, el) {
+  const key = `alert:${kind}`;
+  const k = ALERT_KINDS.find(x => x.id === kind);
+  const count = collectAlerts().filter(a => a.kind === kind).length;
+  if (!activeFilters.has(key) && count === 0) {
+    toast(`Nenhum alerta de ${k.short.toLowerCase()} agora. 🎉`);
+    return;
+  }
+  const turningOn = !activeFilters.has(key);
+  toggleFilter(key, null);
+  if (turningOn && el) { const fresh = document.querySelector(`.al-tab[onclick*="'${kind}'"]`); chipBloom(fresh || el); }
+};
+
+window.clearAlertFilters = function() {
+  [...activeFilters].forEach(k => { if (k.startsWith('alert:')) activeFilters.delete(k); });
+  applyFilters();
+};
+
+// O sino "Precisam de rega" funciona como atalho do filtro de rega
+window.filterNeedWater = function() {
+  const key = 'alert:water';
+  if (activeFilters.has(key)) { activeFilters.delete(key); applyFilters(); return; }
+  const items = collectAlerts().filter(a => a.kind === 'water');
+  if (!items.length) { toast('Nenhuma planta precisa de água agora. 🎉'); return; }
+  activeFilters.add(key);
+  applyFilters();
+  const spCount = new Set(items.map(a => a.species.firestoreId)).size;
+  toast(`💧 ${plural(items.length, 'vaso', 'vasos')} em ${plural(spCount, 'espécie', 'espécies')} precisam de rega`);
+  scrollToSpeciesGrid();
+};
 
 // ==================== RENDER: ESPÉCIES ====================
 function emptyPlantSvg() {
@@ -842,7 +994,7 @@ function renderSpeciesGridInner({ animate = false } = {}) {
   $('speciesCountChip').textContent = list.length;
 
   if (list.length === 0) {
-    const onlyThirsty = activeFilters.size === 1 && activeFilters.has('water:thirsty') && !searchTerm;
+    const onlyThirsty = activeFilters.size === 1 && activeFilters.has('alert:water') && !searchTerm;
     if (activeFilters.size && !onlyThirsty) {
       container.innerHTML = `<div class="empty-state">${emptyPlantSvg()}<h4>Nenhuma espécie combina com esses filtros</h4><p>Tente remover algum filtro ou limpar a seleção.</p><button class="btn btn-primary" onclick="clearFilters()">Limpar filtros</button></div>`;
       return;
@@ -961,10 +1113,10 @@ window.openSpeciesDetail = function(species, { fromUser = false } = {}) {
     { icon: "🏷️", label: "Categoria", val: species.category },
     { icon: "☀️", label: "Luz / Sol", val: species.light },
     { icon: "💧", label: "Rega", val: species.water, extra: species.waterDays ? ` · a cada ${species.waterDays} dias` : '' },
-    { icon: "✂️", label: "Poda", val: species.pruning },
+    { icon: "✂️", label: "Poda", val: species.pruning, extra: species.pruningDays ? ` · a cada ${species.pruningDays} dias` : '' },
     { icon: "💦", label: "Umidade", val: species.humidity },
     { icon: "🪱", label: "Solo", val: species.soil },
-    { icon: "🧪", label: "Adubação comercial", val: species.fertilizer },
+    { icon: "🧪", label: "Adubação comercial", val: species.fertilizer, extra: species.fertilizerDays ? ` · a cada ${species.fertilizerDays} dias` : '' },
     { icon: "🍌", label: "Adubação natural", val: species.naturalFertilizer },
     { icon: "💡", label: "Dica extra", val: species.extraTips },
     { icon: "⚠️", label: "Observações", val: species.observations },
@@ -1229,6 +1381,8 @@ window.editSpecies = function(firestoreId) {
   $('fieldLight').value = sp.light || '';
   $('fieldWater').value = sp.water || '';
   $('specieWaterDays').value = sp.waterDays || '';
+  $('specieFertDays').value = sp.fertilizerDays || '';
+  $('speciePruneDays').value = sp.pruningDays || '';
   $('fieldPruning').value = sp.pruning || '';
   $('fieldHumidity').value = sp.humidity || '';
   $('fieldSoil').value = sp.soil || '';
@@ -1269,6 +1423,8 @@ window.saveSpecies = async function(event) {
     light: $('fieldLight').value.trim(),
     water: $('fieldWater').value.trim(),
     waterDays: Number($('specieWaterDays').value) || 5,
+    fertilizerDays: Number($('specieFertDays').value) || DEFAULT_FERT_DAYS,
+    pruningDays: Number($('speciePruneDays').value) || DEFAULT_PRUNE_DAYS,
     pruning: $('fieldPruning').value.trim(),
     humidity: $('fieldHumidity').value.trim(),
     soil: $('fieldSoil').value.trim(),
