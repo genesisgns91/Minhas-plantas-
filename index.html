@@ -128,6 +128,11 @@
           </div>
 
           <div class="toolbar">
+            <button class="btn burger" id="filterBtn" onclick="toggleFilterPanel()" aria-expanded="false" aria-controls="drawerFilters" aria-label="Filtros">
+              <span class="burger-ico" aria-hidden="true"><i></i><i></i><i></i><b class="burger-leaf"></b></span>
+              <span class="burger-label">Filtros</span>
+              <span class="burger-badge" id="filterBadge">0</span>
+            </button>
             <div class="search-box-wrap" id="searchWrap">
               <span class="s-ico">🔍</span>
               <input type="search" id="searchInput" placeholder="Buscar por vaso, espécie, luz, rega, solo, adubação…" oninput="applySpeciesSearch()" autocomplete="off" aria-label="Buscar plantas" />
@@ -140,6 +145,8 @@
             </div>
             <button class="btn btn-secondary" onclick="waterAllFiltered()" title="Regar todos os vasos filtrados">💧 Regar todos</button>
           </div>
+
+          <div class="active-filters" id="activeFilters" hidden aria-live="polite"></div>
 
           <h3 class="section-title">🌱 Minhas espécies <span class="count" id="speciesCountChip">0</span></h3>
           <div class="species-grid" id="speciesGrid">
@@ -260,6 +267,25 @@
     <button class="fab" onclick="openAddSpeciesModal()" aria-label="Nova espécie">+</button>
     <button class="nav-btn" data-tab="ai" onclick="switchTab('ai')"><span class="nav-ico">🔬</span>IA</button>
   </nav>
+
+  <!-- ============ DRAWER: FILTROS (menu sanduíche) ============ -->
+  <div class="modal-overlay soft" id="drawerFilters">
+    <div class="drawer narrow filters-drawer" role="dialog" aria-modal="true" aria-labelledby="filtersTitle">
+      <div class="drawer-handle"></div>
+      <div class="drawer-header f-header">
+        <div>
+          <h3 id="filtersTitle">Filtrar plantas 🌿</h3>
+          <p class="f-live" id="fLive" aria-live="polite"></p>
+        </div>
+        <button class="btn-close" onclick="closeActiveDrawer()" aria-label="Fechar filtros">&times;</button>
+      </div>
+      <div class="drawer-inner f-groups" id="filterGroups"></div>
+      <div class="f-footer">
+        <button class="btn btn-ghost" id="fClear" onclick="clearFilters()">Limpar tudo</button>
+        <button class="btn btn-primary" id="fApply" onclick="closeActiveDrawer()">Ver espécies</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ============ DRAWER: ESPÉCIE ============ -->
   <div class="modal-overlay" id="drawerAddSpecies">
