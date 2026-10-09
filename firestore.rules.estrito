@@ -1,0 +1,41 @@
+rules_version = '2';
+
+// =====================================================================
+// MINHAS PLANTAS — Regras de segurança do Firestore
+// Cada pessoa só lê e altera os documentos em que ownerId == seu uid.
+//
+// VERSÃO ESTRITA: use depois que a migração dos dados antigos já foi feita (a conta administradora
+// entrou uma vez e viu os dados). Aqui ninguém — nem o administrador — lê dados de outra pessoa.
+// =====================================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function owns(data) { return signedIn() && data.ownerId == request.auth.uid; }
+    function ownerUnchanged() { return request.resource.data.ownerId == resource.data.ownerId; }
+
+    match /species/{id} {
+      allow read:   if owns(resource.data);
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if owns(resource.data) && ownerUnchanged();
+      allow delete: if owns(resource.data);
+    }
+
+    match /vases/{id} {
+      allow read:   if owns(resource.data);
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if owns(resource.data) && ownerUnchanged();
+      allow delete: if owns(resource.data);
+    }
+
+    // Dados da própria conta (ex.: marca de que a migração já foi feita)
+    match /users/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
+    // Todo o resto é negado
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

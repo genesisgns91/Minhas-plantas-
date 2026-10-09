@@ -1,0 +1,51 @@
+rules_version = '2';
+
+// =====================================================================
+// MINHAS PLANTAS — Regras de segurança do Firestore
+// Cada pessoa só lê e altera os documentos em que ownerId == seu uid.
+//
+// IMPORTANTE (migração): estas regras incluem a exceção "isAdmin()" que permite à conta
+// genesisgns@gmail.com (com e-mail verificado) ler e assumir os dados antigos, criados antes do login.
+// Depois de entrar uma vez e ver seus dados, troque por firestore.rules.estrito (sem a exceção).
+// =====================================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isAdmin() {
+      return signedIn()
+        && request.auth.token.email == 'genesisgns@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+    function owns(data) { return signedIn() && data.ownerId == request.auth.uid; }
+    function ownerUnchanged() { return request.resource.data.ownerId == resource.data.ownerId; }
+    // Dado antigo, sem dono: só a conta administradora pode "adotá-lo" (colocando o próprio uid como dono).
+    function legacyAdoption() {
+      return isAdmin() && !('ownerId' in resource.data) && request.resource.data.ownerId == request.auth.uid;
+    }
+
+    match /species/{id} {
+      allow read:   if owns(resource.data) || isAdmin();
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if (owns(resource.data) && ownerUnchanged()) || legacyAdoption();
+      allow delete: if owns(resource.data);
+    }
+
+    match /vases/{id} {
+      allow read:   if owns(resource.data) || isAdmin();
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if (owns(resource.data) && ownerUnchanged()) || legacyAdoption();
+      allow delete: if owns(resource.data);
+    }
+
+    // Dados da própria conta (ex.: marca de que a migração já foi feita)
+    match /users/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
+    // Todo o resto é negado
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

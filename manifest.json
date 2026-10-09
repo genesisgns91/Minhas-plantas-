@@ -21,5 +21,34 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
+  ],
+  "lang": "pt-BR",
+  "categories": [
+    "lifestyle",
+    "productivity"
+  ],
+  "shortcuts": [
+    {
+      "name": "Agenda de hoje",
+      "short_name": "Agenda",
+      "url": "./?tab=agenda",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Galeria de fotos",
+      "short_name": "Galeria",
+      "url": "./?tab=gallery",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
   ]
 }

@@ -7,6 +7,19 @@
   <meta name="description" content="Controle de rega, adubação e evolução das suas plantas." />
 
   <meta name="theme-color" content="#2f4a2c" />
+  <meta name="color-scheme" content="light dark" />
+  <script>
+    /* Aplica o tema salvo antes de desenhar a página (evita o "flash" claro no modo escuro) */
+    (function () {
+      try {
+        var p = localStorage.getItem('minhasplantas_theme') || 'auto';
+        var dark = p === 'dark' || (p === 'auto' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        document.documentElement.dataset.themePref = p;
+        if (dark) document.querySelector('meta[name="theme-color"]').setAttribute('content', '#10170f');
+      } catch (e) {}
+    })();
+  </script>
   <link rel="manifest" href="manifest.json" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -16,11 +29,39 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="style.css" />
 </head>
-<body>
+<body class="auth-loading">
+  <a class="skip-link" href="#main">Pular para o conteúdo</a>
+
+  <!-- Carregando a sessão -->
+  <div class="splash" id="splash" role="status" aria-live="polite">
+    <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="rgba(255,255,255,.12)"/><path d="M22 44h20l-2.5 12h-15z" fill="#c16e41"/><rect x="20" y="40" width="24" height="6" rx="3" fill="#d98557"/><path d="M32 40V24" stroke="#bfe3b4" stroke-width="2.6" stroke-linecap="round" fill="none"/><path d="M32 30C22 30 16 24 16 15c9 0 16 5 16 15z" fill="#8fcf80"/><path d="M32 26c0-9 6-15 16-15 0 9-6 15-16 15z" fill="#b6e6a8"/></svg>
+    <p>Preparando seu jardim…</p>
+  </div>
+
+  <!-- Entrar -->
+  <main class="login" id="loginScreen" hidden aria-labelledby="loginTitle">
+    <div class="login-card">
+      <svg class="login-logo" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="rgba(255,255,255,.14)"/><path d="M22 44h20l-2.5 12h-15z" fill="#c16e41"/><rect x="20" y="40" width="24" height="6" rx="3" fill="#d98557"/><path d="M32 40V24" stroke="#bfe3b4" stroke-width="2.6" stroke-linecap="round" fill="none"/><path d="M32 30C22 30 16 24 16 15c9 0 16 5 16 15z" fill="#8fcf80"/><path d="M32 26c0-9 6-15 16-15 0 9-6 15-16 15z" fill="#b6e6a8"/><circle cx="46" cy="14" r="3.4" fill="#e9a8b5"/></svg>
+      <h1 id="loginTitle">Minhas Plantas</h1>
+      <p class="login-sub">Rega, adubo, pragas e a evolução de cada vaso — tudo no seu jardim digital.</p>
+      <ul class="login-points">
+        <li>🔒 Cada pessoa tem o seu próprio jardim, privado</li>
+        <li>📅 Agenda e avisos no celular</li>
+        <li>📸 Fotos para acompanhar o crescimento</li>
+      </ul>
+      <button class="btn btn-primary login-btn" id="loginBtn" onclick="signInWithGoogle()">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="#fff" d="M21.6 12.23c0-.68-.06-1.33-.17-1.96H12v3.7h5.4a4.6 4.6 0 0 1-2 3.02v2.5h3.23c1.9-1.74 2.97-4.3 2.97-7.26z"/><path fill="#fff" opacity=".85" d="M12 22c2.7 0 4.96-.9 6.63-2.43l-3.23-2.5c-.9.6-2.04.96-3.4.96-2.6 0-4.8-1.76-5.6-4.12H3.06v2.58A10 10 0 0 0 12 22z"/><path fill="#fff" opacity=".7" d="M6.4 13.9a6 6 0 0 1 0-3.8V7.52H3.06a10 10 0 0 0 0 8.96z"/><path fill="#fff" opacity=".55" d="M12 5.98c1.47 0 2.79.5 3.83 1.5l2.86-2.86C16.96 3.01 14.7 2 12 2a10 10 0 0 0-8.94 5.52L6.4 10.1C7.2 7.74 9.4 5.98 12 5.98z"/></svg>
+        Entrar com Google
+      </button>
+      <p class="login-error" id="loginError" role="alert" hidden></p>
+      <p class="login-note">Ao entrar, você vê só os seus dados. Contas novas começam com o jardim vazio.</p>
+    </div>
+  </main>
 
   <!-- Pétalas e folhas decorativas flutuando no fundo (geradas pelo app.js) -->
   <div class="petals" id="petals" aria-hidden="true"></div>
@@ -28,7 +69,7 @@
   <div class="app-layout">
 
     <!-- ============ MENU LATERAL FIXO ============ -->
-    <aside class="sidebar" id="sidebar">
+    <aside class="sidebar" id="sidebar" aria-label="Menu lateral">
       <div class="sidebar-top">
         <div class="brand">
           <svg class="brand-logo" viewBox="0 0 64 64" aria-hidden="true">
@@ -50,13 +91,16 @@
 
       <nav class="side-nav" aria-label="Navegação principal">
         <button class="nav-btn active" data-tab="species" onclick="switchTab('species')">
-          <span class="nav-ico">🌱</span><span class="nav-label">Espécies & Vasos</span>
+          <span class="nav-ico" aria-hidden="true">🌱</span><span class="nav-label">Espécies & Vasos</span>
         </button>
         <button class="nav-btn" data-tab="gallery" onclick="switchTab('gallery')">
-          <span class="nav-ico">📸</span><span class="nav-label">Galeria de fotos</span>
+          <span class="nav-ico" aria-hidden="true">📸</span><span class="nav-label">Galeria de fotos</span>
+        </button>
+        <button class="nav-btn" data-tab="agenda" onclick="switchTab('agenda')">
+          <span class="nav-ico" aria-hidden="true">📅</span><span class="nav-label">Agenda</span>
         </button>
         <button class="nav-btn" data-tab="ai" onclick="switchTab('ai')">
-          <span class="nav-ico">🔬</span><span class="nav-label">Diagnóstico & IA</span>
+          <span class="nav-ico" aria-hidden="true">🔬</span><span class="nav-label">Diagnóstico & IA</span>
         </button>
       </nav>
 
@@ -68,10 +112,20 @@
         <b>🌸 Dica do dia</b>
         <p id="dailyTip">Carregando dica…</p>
       </div>
+
+      <div class="side-user">
+        <button class="user-chip" onclick="openSettings()" title="Conta e configurações">
+          <span class="avatar" data-user-avatar aria-hidden="true">?</span>
+          <span class="user-text"><b data-user-name></b><small data-user-email></small><span class="sr-only">Conta e configurações</span></span>
+          <span class="user-gear" aria-hidden="true">⚙️</span>
+        </button>
+        <button class="theme-btn" data-theme-toggle onclick="toggleTheme()" aria-label="Mudar tema">🌙</button>
+      </div>
     </aside>
 
     <!-- ============ CONTEÚDO ============ -->
-    <main class="main-content" id="main">
+    <div class="main-content" id="main" tabindex="-1" role="main">
+      <h1 class="sr-only">Minhas Plantas</h1>
       <div class="page">
 
         <!-- ---------- ESPÉCIES (HOME) ---------- -->
@@ -94,6 +148,8 @@
             </div>
             <div class="hero-actions">
               <button class="btn btn-primary" onclick="openAddSpeciesModal()"><span>+</span> Nova Espécie</button>
+              <button class="hero-icon" data-theme-toggle onclick="toggleTheme()" aria-label="Mudar tema">🌙</button>
+              <button class="hero-avatar" onclick="openSettings()" aria-label="Conta e configurações"><span class="avatar" data-user-avatar aria-hidden="true">?</span></button>
             </div>
           </div>
 
@@ -110,7 +166,7 @@
               <div class="stat-icon">💧</div>
               <div class="stat-info"><div class="value" id="statWateredToday">0</div><div class="label">Regados hoje</div></div>
             </div>
-            <button type="button" class="stat-card alert" id="statNeedCard" onclick="filterNeedWater()" aria-pressed="false" aria-label="Filtrar plantas que precisam de rega">
+            <button type="button" class="stat-card alert" id="statNeedCard" onclick="filterNeedWater()" aria-pressed="false">
               <div class="stat-icon">🔔</div>
               <div class="stat-info"><div class="value" id="statNeedWater">0</div><div class="label">Precisam de rega</div><div class="stat-hint" id="statNeedHint">toque para ver as plantas</div></div>
             </button>
@@ -182,6 +238,7 @@
               </div>
             </div>
             <div class="detail-actions">
+              <button class="btn btn-secondary" onclick="shareCurrentSpecies()">📤 Compartilhar</button>
               <button class="btn btn-secondary" onclick="editCurrentSpecies()">✏️ Editar espécie</button>
               <button class="btn btn-primary" onclick="openAddVaseModal()">🪴 Adicionar vaso</button>
             </div>
@@ -208,9 +265,9 @@
               <h2>Galeria de fotos 📸</h2>
               <p id="galStats">Todas as fotos dos seus vasos num só lugar</p>
             </div>
-            <div class="segmented" role="tablist" aria-label="Modo de visualização">
-              <button class="seg active" data-gview="photos" onclick="setGalleryView('photos')" role="tab">📷 Fotos</button>
-              <button class="seg" data-gview="vases" onclick="setGalleryView('vases')" role="tab">🪴 Por vaso</button>
+            <div class="segmented" role="group" aria-label="Modo de visualização">
+              <button class="seg active" data-gview="photos" onclick="setGalleryView('photos')" aria-pressed="true">📷 Fotos</button>
+              <button class="seg" data-gview="vases" onclick="setGalleryView('vases')" aria-pressed="false">🪴 Por vaso</button>
             </div>
           </div>
 
@@ -228,6 +285,42 @@
           <div id="galContent"><div class="g-grid"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div></div>
         </section>
 
+        <!-- ---------- AGENDA ---------- -->
+        <section id="sec-agenda" class="view" aria-label="Agenda de cuidados">
+          <div class="header-bar">
+            <div class="header-title">
+              <h2>Agenda 📅</h2>
+              <p id="agendaSummary">Rega, adubo, poda, tratamentos e lembretes</p>
+            </div>
+            <button class="btn btn-primary" onclick="openReminderForm(document.querySelector('.cal-day.selected') && document.querySelector('.cal-day.selected').dataset.key)">+ Lembrete</button>
+          </div>
+          <div class="agenda-layout">
+            <div class="panel cal">
+              <div class="cal-head">
+                <button class="btn-icon" onclick="agendaMonth(-1)" aria-label="Mês anterior">‹</button>
+                <h3 id="calTitle" aria-live="polite"></h3>
+                <button class="btn-icon" onclick="agendaMonth(1)" aria-label="Próximo mês">›</button>
+                <button class="btn btn-secondary" onclick="agendaToday()">Hoje</button>
+              </div>
+              <div class="cal-grid" id="calGrid" role="group" aria-label="Calendário de cuidados — escolha um dia"></div>
+              <ul class="cal-legend" aria-label="Legenda">
+                <li style="--k:#4f9bbd"><i></i>Rega</li><li style="--k:#b38b4d"><i></i>Adubo</li><li style="--k:#5f8b57"><i></i>Poda</li><li style="--k:#8e5ea2"><i></i>Pragas</li><li style="--k:#c16e41"><i></i>Lembretes</li>
+              </ul>
+              <p class="cal-note">Os próximos cuidados são calculados a partir do último registro e do ritmo de cada espécie.</p>
+            </div>
+            <div class="agenda-side">
+              <div class="panel">
+                <div class="panel-title"><span aria-hidden="true">🗓️</span> <span id="agendaDayTitle"></span> <span class="count" id="agendaDayCount"></span></div>
+                <ul class="alert-list agenda-list" id="agendaDayList" aria-live="polite"></ul>
+              </div>
+              <div class="panel">
+                <div class="panel-title"><span aria-hidden="true">⏭️</span> Próximos 7 dias</div>
+                <ul class="agenda-upcoming" id="agendaUpcoming"></ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <!-- ---------- DIAGNÓSTICO E IDENTIFICAÇÃO (IA) ---------- -->
         <section id="sec-ai" class="view" aria-label="Diagnóstico e identificação por IA">
           <div class="header-bar">
@@ -235,9 +328,9 @@
               <h2 id="aiTitle">Diagnóstico de saúde 🩺</h2>
               <p id="aiSubtitle">Envie uma foto para a IA analisar pragas, doenças ou deficiências</p>
             </div>
-            <div class="segmented" role="tablist" aria-label="Modo da IA">
-              <button class="seg active" data-aimode="diagnose" onclick="setAiMode('diagnose')" role="tab">🩺 Diagnóstico</button>
-              <button class="seg" data-aimode="identify" onclick="setAiMode('identify')" role="tab">🔎 Identificar planta</button>
+            <div class="segmented" role="group" aria-label="Modo da IA">
+              <button class="seg active" data-aimode="diagnose" onclick="setAiMode('diagnose')" aria-pressed="true">🩺 Diagnóstico</button>
+              <button class="seg" data-aimode="identify" onclick="setAiMode('identify')" aria-pressed="false">🔎 Identificar planta</button>
             </div>
           </div>
           <div class="ai-layout">
@@ -270,15 +363,16 @@
         </section>
 
       </div>
-    </main>
+    </div>
   </div>
 
   <!-- ============ NAVEGAÇÃO MOBILE ============ -->
-  <nav class="bottom-nav" aria-label="Navegação principal">
-    <button class="nav-btn active" data-tab="species" onclick="switchTab('species')"><span class="nav-ico">🌱</span>Espécies</button>
-    <button class="nav-btn" data-tab="gallery" onclick="switchTab('gallery')"><span class="nav-ico">📸</span>Galeria</button>
+  <nav class="bottom-nav" aria-label="Atalhos de navegação">
+    <button class="nav-btn active" data-tab="species" onclick="switchTab('species')"><span class="nav-ico" aria-hidden="true">🌱</span>Espécies</button>
+    <button class="nav-btn" data-tab="gallery" onclick="switchTab('gallery')"><span class="nav-ico" aria-hidden="true">📸</span>Galeria</button>
     <button class="fab" onclick="openAddSpeciesModal()" aria-label="Nova espécie">+</button>
-    <button class="nav-btn" data-tab="ai" onclick="switchTab('ai')"><span class="nav-ico">🔬</span>IA</button>
+    <button class="nav-btn" data-tab="agenda" onclick="switchTab('agenda')"><span class="nav-ico" aria-hidden="true">📅</span>Agenda</button>
+    <button class="nav-btn" data-tab="ai" onclick="switchTab('ai')"><span class="nav-ico" aria-hidden="true">🔬</span>IA</button>
   </nav>
 
   <!-- ============ DRAWER: FILTROS (menu sanduíche) ============ -->
@@ -506,6 +600,11 @@
       <div class="drawer-inner">
         <form id="formCareLog" onsubmit="saveCareLog(event)">
           <input type="hidden" id="logVaseId" />
+          <input type="hidden" id="logEditIndex" />
+          <div class="form-group" id="logVaseGroup" hidden>
+            <label for="logVaseSelect">Vaso</label>
+            <select id="logVaseSelect" class="form-control"></select>
+          </div>
           <div class="form-group">
             <label for="logActionType">Tipo de ação</label>
             <select id="logActionType" class="form-control" required>
@@ -546,6 +645,7 @@
           <div class="sec-title"><h4>📸 Galeria de evolução</h4>
             <div style="display:flex; gap:.4rem; flex-wrap:wrap;">
               <button class="btn btn-ghost" id="btnPlayEvolution" onclick="openLightboxEvolution()">▶ Ver evolução</button>
+              <button class="btn btn-ghost" onclick="shareCurrentVase()">📤 Compartilhar</button>
               <label class="btn btn-secondary">📁 Galeria<input type="file" accept="image/*" hidden onchange="addGalleryPhoto(event)" /></label>
               <label class="btn btn-primary">📷 Câmera<input type="file" accept="image/*" capture="environment" hidden onchange="addGalleryPhoto(event)" /></label>
             </div>
@@ -553,6 +653,13 @@
           <div class="gallery-meter" id="galleryMeter"><i></i></div>
           <div class="gallery-note" id="galleryNote"></div>
           <div class="gallery-grid" id="vaseDetailGallery"></div>
+        </div>
+
+        <div>
+          <div class="sec-title"><h4>🐛 Pragas e tratamentos <small class="muted" id="pestsCount"></small></h4>
+            <button class="btn btn-secondary" onclick="openPestFormForCurrent()">+ Registrar ocorrência</button>
+          </div>
+          <div id="vasePests" class="pest-list"></div>
         </div>
 
         <div>
@@ -568,6 +675,138 @@
     </div>
   </div>
 
+  <!-- ============ DRAWER: PRAGA / DOENÇA ============ -->
+  <div class="modal-overlay" id="drawerPest">
+    <div class="drawer" role="dialog" aria-modal="true" aria-labelledby="pestModalTitle">
+      <div class="drawer-handle"></div>
+      <div class="drawer-header">
+        <h3 id="pestModalTitle">Registrar praga ou doença</h3>
+        <button class="btn-close" onclick="closeActiveDrawer()" aria-label="Fechar">&times;</button>
+      </div>
+      <div class="drawer-inner">
+        <form id="formPest" onsubmit="savePest(event)">
+          <input type="hidden" id="pestVaseId" /><input type="hidden" id="pestEditId" />
+          <div class="form-group" id="pestVaseGroup" hidden>
+            <label for="pestVase">Vaso</label>
+            <select id="pestVase" class="form-control"></select>
+          </div>
+          <div class="form-group">
+            <label for="pestName">O que foi encontrado?</label>
+            <input type="text" id="pestName" class="form-control" list="pestNames" placeholder="Ex: Cochonilha, oídio, ácaro…" required autocomplete="off" />
+            <datalist id="pestNames">
+              <option value="Cochonilha"></option><option value="Pulgão"></option><option value="Ácaro-vermelho"></option><option value="Mosquinha-do-substrato"></option>
+              <option value="Lagarta"></option><option value="Mosca-branca"></option><option value="Tripes"></option><option value="Formigas"></option>
+              <option value="Oídio (mofo branco)"></option><option value="Mancha foliar"></option><option value="Podridão de raiz"></option><option value="Fungo no substrato"></option><option value="Ferrugem"></option>
+            </datalist>
+          </div>
+          <div class="form-grid">
+            <div class="form-group"><label for="pestSeverity">Gravidade</label>
+              <select id="pestSeverity" class="form-control"><option value="leve">🟡 Leve</option><option value="moderada" selected>🟠 Moderada</option><option value="grave">🔴 Grave</option></select></div>
+            <div class="form-group"><label for="pestDate">Detectada em</label><input type="date" id="pestDate" class="form-control" required /></div>
+          </div>
+          <div class="form-group"><label for="pestNotes">Observações</label><textarea id="pestNotes" class="form-control" rows="4" placeholder="Onde aparece, como estão as folhas, o que você já tentou…"></textarea></div>
+          <button type="submit" id="btnSavePest" class="btn btn-primary" style="width:100%; padding:1rem;">Registrar ocorrência</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ DRAWER: TRATAMENTO ============ -->
+  <div class="modal-overlay" id="drawerTreatment">
+    <div class="drawer" role="dialog" aria-modal="true" aria-labelledby="treatTitle">
+      <div class="drawer-handle"></div>
+      <div class="drawer-header">
+        <div><h3 id="treatTitle">Registrar tratamento</h3><p class="f-live" id="treatSubtitle"></p></div>
+        <button class="btn-close" onclick="closeActiveDrawer()" aria-label="Fechar">&times;</button>
+      </div>
+      <div class="drawer-inner">
+        <form id="formTreatment" onsubmit="saveTreatment(event)">
+          <input type="hidden" id="treatVaseId" /><input type="hidden" id="treatPestId" />
+          <div class="form-group">
+            <label for="treatProduct">Produto ou método</label>
+            <input type="text" id="treatProduct" class="form-control" list="treatProducts" placeholder="Ex: Óleo de neem, sabão potássico…" required autocomplete="off" />
+            <datalist id="treatProducts">
+              <option value="Óleo de neem"></option><option value="Sabão potássico"></option><option value="Álcool 70% com cotonete"></option><option value="Calda de alho"></option>
+              <option value="Inseticida específico"></option><option value="Fungicida"></option><option value="Poda das partes afetadas"></option><option value="Troca do substrato"></option>
+              <option value="Isolamento da planta"></option><option value="Banho de água nas folhas"></option><option value="Armadilha adesiva"></option>
+            </datalist>
+          </div>
+          <div class="form-grid">
+            <div class="form-group"><label for="treatDate">Aplicado em</label><input type="datetime-local" id="treatDate" class="form-control" required /></div>
+            <div class="form-group"><label for="treatNext">Reaplicar em (opcional)</label><input type="date" id="treatNext" class="form-control" /><small>Aparece na agenda e nos alertas.</small></div>
+          </div>
+          <div class="form-group"><label for="treatNotes">Observações</label><textarea id="treatNotes" class="form-control" rows="3" placeholder="Dose, local da aplicação, como a planta reagiu…"></textarea></div>
+          <label class="check-row"><input type="checkbox" id="treatResolve" /> <span>Com este tratamento, a praga foi resolvida</span></label>
+          <button type="submit" id="btnSaveTreatment" class="btn btn-primary" style="width:100%; padding:1rem; margin-top:1rem;">Salvar tratamento</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ DRAWER: COMPARTILHAR ============ -->
+  <div class="modal-overlay" id="drawerShare">
+    <div class="drawer" role="dialog" aria-modal="true" aria-labelledby="shareTitle">
+      <div class="drawer-handle"></div>
+      <div class="drawer-header">
+        <h3 id="shareTitle">Compartilhar</h3>
+        <button class="btn-close" onclick="closeActiveDrawer()" aria-label="Fechar">&times;</button>
+      </div>
+      <div class="drawer-inner">
+        <div class="share-options" id="shareOptions"></div>
+        <div class="share-preview" id="sharePreview" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ DRAWER: CONFIGURAÇÕES ============ -->
+  <div class="modal-overlay" id="drawerSettings">
+    <div class="drawer" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="drawer-handle"></div>
+      <div class="drawer-header">
+        <h3 id="settingsTitle">Conta e configurações</h3>
+        <button class="btn-close" onclick="closeActiveDrawer()" aria-label="Fechar">&times;</button>
+      </div>
+      <div class="drawer-inner settings">
+        <section class="set-card profile" aria-label="Conta">
+          <span class="avatar lg" data-user-avatar aria-hidden="true">?</span>
+          <div><b data-user-name></b><small data-user-email></small></div>
+          <button class="btn btn-secondary" onclick="confirmSignOut()">Sair</button>
+        </section>
+
+        <section class="set-card" aria-labelledby="setThemeTitle">
+          <h4 id="setThemeTitle">🎨 Aparência</h4>
+          <div class="segmented" role="group" aria-label="Tema">
+            <button class="seg" data-theme-set="auto" onclick="chooseTheme('auto')" aria-pressed="false">🖥️ Automático</button>
+            <button class="seg" data-theme-set="light" onclick="chooseTheme('light')" aria-pressed="false">☀️ Claro</button>
+            <button class="seg" data-theme-set="dark" onclick="chooseTheme('dark')" aria-pressed="false">🌙 Escuro</button>
+          </div>
+        </section>
+
+        <section class="set-card" aria-labelledby="setPushTitle">
+          <h4 id="setPushTitle">🔔 Notificações no celular</h4>
+          <div id="pushBox"></div>
+        </section>
+
+        <section class="set-card" aria-labelledby="setPhotoTitle">
+          <h4 id="setPhotoTitle">📸 Fotos</h4>
+          <p class="muted" id="cloudStatus"></p>
+          <button class="btn btn-secondary" id="btnMigratePhotos" onclick="migratePhotos()" hidden></button>
+        </section>
+
+        <section class="set-card" aria-labelledby="setDataTitle">
+          <h4 id="setDataTitle">💾 Seus dados</h4>
+          <div class="set-actions">
+            <button class="btn btn-secondary" onclick="exportExcel()">📊 Exportar planilha (Excel)</button>
+            <button class="btn btn-secondary" onclick="exportBackup()">⬇ Fazer backup (JSON)</button>
+            <button class="btn btn-secondary" onclick="pickBackupFile()">⬆ Restaurar backup</button>
+            <input type="file" id="backupFile" accept="application/json,.json" hidden onchange="importBackup(this.files[0]); this.value=''" />
+          </div>
+          <p class="muted">A planilha tem uma linha por vaso, com os dados da espécie. O backup guarda tudo (espécies, vasos, histórico, pragas e fotos).</p>
+        </section>
+      </div>
+    </div>
+  </div>
+
   <!-- ============ LIGHTBOX / CARROSSEL DE EVOLUÇÃO ============ -->
   <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Galeria de evolução">
     <div class="lb-bg" id="lbBg"></div>
@@ -579,7 +818,7 @@
         <button class="lb-btn" id="lbZoom" onclick="lbToggleZoom()" aria-label="Zoom" title="Zoom (toque duplo)">🔍</button>
         <a class="lb-btn" id="lbDownload" aria-label="Baixar foto" title="Baixar foto" download="planta.jpg" style="text-decoration:none; color:inherit;">⬇</a>
         <button class="lb-btn danger" onclick="lbDelete()" aria-label="Excluir foto" title="Excluir foto">🗑</button>
-        <button class="lb-btn" onclick="closeLightbox()" aria-label="Fechar" title="Fechar (Esc)">✕</button>
+        <button class="lb-btn" id="lbClose" onclick="closeLightbox()" aria-label="Fechar" title="Fechar (Esc)">✕</button>
       </div>
     </div>
     <div class="lb-stage" id="lbStage">
@@ -607,6 +846,6 @@
   </div>
   <div class="toasts" id="toasts" aria-live="polite"></div>
 
-  <script type="module" src="app.js"></script>
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>

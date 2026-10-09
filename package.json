@@ -1,0 +1,20 @@
+{
+  "name": "minhas-plantas",
+  "version": "2.0.0",
+  "private": true,
+  "description": "App web para cuidar de plantas e vasos (PWA).",
+  "scripts": {
+    "test": "node tests/run-all.js",
+    "lint": "eslint js sw.js",
+    "build:css": "python3 build_assets.py"
+  },
+  "devDependencies": {
+    "axe-core": "^4.10.0",
+    "canvas": "^2.11.2",
+    "esbuild": "^0.28.0",
+    "eslint": "^9.0.0",
+    "exceljs": "^4.4.0",
+    "globals": "^15.0.0",
+    "jsdom": "^26.0.0"
+  }
+}
