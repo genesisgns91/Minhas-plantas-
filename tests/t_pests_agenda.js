@@ -1,0 +1,135 @@
+const { boot, check, tick, summary } = require('./harness');
+const U = { uid: 'u1', email: 'a@b.c', displayName: 'Ana Lima', emailVerified: true };
+const day = (n) => new Date(Date.now() + n * 86400000);
+const iso = (n) => day(n).toISOString();
+const ymd = (n) => { const d = day(n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+(async () => {
+  const t = await boot({ user: U, seed: (d) => {
+    d.species.s1 = { name: 'Jiboia', ownerId: 'u1', waterDays: 3, fertilizerDays: 30, pruningDays: 90 };
+    d.species.s2 = { name: 'Cacto', ownerId: 'u1', waterDays: 14 };
+    d.vases.v1 = { speciesId: 's1', ownerId: 'u1', name: 'Vaso da sala', lastWater: iso(-4), history: [{ type: 'lastWater', date: iso(-4) }] };
+    d.vases.v2 = { speciesId: 's1', ownerId: 'u1', name: 'Pendente', lastWater: iso(-1), lastFertilizer: iso(-10), history: [{ type: 'lastWater', date: iso(-1) }, { type: 'lastFertilizer', date: iso(-10) }] };
+    d.vases.v3 = { speciesId: 's2', ownerId: 'u1', name: 'Cacto mesa', lastWater: iso(-2), history: [] };
+    d.vases.v4 = { speciesId: 's2', ownerId: 'u1', name: 'Sem registros', history: [] };
+  } });
+  const { window: w, document: doc, fb, app } = t;
+  const g = (id) => doc.getElementById(id);
+  const vase = (id) => fb.data.vases[id];
+
+  console.log('1) Pragas: registrar');
+  w.openSpeciesDetail(app.S.species.find(x => x.name === 'Jiboia')); await tick(40);
+  w.openVaseDetail('v1'); await tick(40);
+  check('seção de pragas começa vazia', /Nenhuma praga registrada/.test(g('vasePests').textContent));
+  w.openPestFormForCurrent(); await tick(20);
+  check('formulário abre (sem escolher vaso)', g('drawerPest').classList.contains('active') && g('pestVaseGroup').hidden && g('pestVaseId').value === 'v1');
+  g('pestName').value = 'Cochonilha'; g('pestSeverity').value = 'grave'; g('pestNotes').value = 'Nas axilas das folhas';
+  await w.savePest({ preventDefault() {} }); await tick(80);
+  const p = (vase('v1').pests || [])[0];
+  check('ocorrência gravada no vaso (ativa, grave, sem tratamentos)', p && p.name === 'Cochonilha' && p.severity === 'grave' && p.status === 'active' && p.treatments.length === 0 && p.id);
+  check('card da praga com gravidade, situação e observações', /Cochonilha/.test(g('vasePests').textContent) && /Grave/.test(g('vasePests').textContent) && /Ativa/.test(g('vasePests').textContent) && /axilas/.test(g('vasePests').textContent));
+  check('contador mostra "1 ativa"', g('pestsCount').textContent === '1 ativa');
+  w.closeActiveDrawer(); await tick(20);
+  check('cartão do vaso mostra "1 praga"', /🐛 1 praga/.test(doc.body.textContent));
+  const tabs = () => [...doc.querySelectorAll('#alertTabs .al-tab')];
+  const pestTab = () => tabs().find(x => x.dataset.kind === 'pest');
+  check('aba Pragas dos alertas com contagem 1', pestTab().querySelector('.n').textContent === '1');
+  check('item de alerta: "Cochonilha · grave" + botão Tratar', /Cochonilha · grave/.test(doc.querySelector('#remindersList .k-pest').textContent) && /Tratar/.test(doc.querySelector('#remindersList .k-pest .al-act').textContent));
+  pestTab().click(); await tick(30);
+  check('aba Pragas filtra as plantas (só a Jiboia)', [...doc.querySelectorAll('.species-card h3')].map(x => x.textContent).join() === 'Jiboia');
+  w.clearAlertFilters(); await tick(20);
+
+  console.log('2) Tratamentos');
+  doc.querySelector('#remindersList .k-pest .al-act').click(); await tick(30);
+  check('botão "Tratar" do alerta abre o formulário do tratamento certo', g('drawerTreatment').classList.contains('active') && /Cochonilha · Vaso da sala/.test(g('treatSubtitle').textContent));
+  g('treatProduct').value = 'Óleo de neem'; g('treatNotes').value = 'Pulverizado à noite'; g('treatNext').value = ymd(-1); // reaplicar "ontem" => atrasado
+  await w.saveTreatment({ preventDefault() {} }); await tick(80);
+  const tr = vase('v1').pests[0].treatments;
+  check('tratamento gravado com data, produto e reaplicação', tr.length === 1 && tr[0].product === 'Óleo de neem' && tr[0].nextDate && tr[0].id);
+  w.openVaseDetail('v1'); await tick(40);
+  check('lista de tratamentos no card e próxima aplicação', /Óleo de neem/.test(g('vasePests').textContent) && /Pulverizado/.test(g('vasePests').textContent) && /Próxima aplicação/.test(g('vasePests').textContent));
+  check('alerta passa a pedir reaplicação atrasada', /Reaplicar o tratamento \(atrasado 1 dia\)/.test(doc.querySelector('#remindersList .k-pest').textContent), doc.querySelector('#remindersList .k-pest').textContent.replace(/\s+/g, ' '));
+  w.closeActiveDrawer();
+
+  console.log('3) Agenda');
+  w.switchTab('agenda'); await tick(60);
+  check('tela da agenda ativa e título do mês', g('sec-agenda').classList.contains('is-active') && g('calTitle').textContent.toLowerCase().includes(String(new Date().getFullYear())));
+  check('calendário com 42 dias e 7 cabeçalhos', doc.querySelectorAll('.cal-day').length === 42 && doc.querySelectorAll('.cal-wd').length === 7);
+  check('hoje marcado e selecionado', doc.querySelectorAll('.cal-day.today').length === 1 && doc.querySelector('.cal-day.today').classList.contains('selected'));
+  const dayList = () => [...doc.querySelectorAll('#agendaDayList .alert-item')].map(x => x.textContent.replace(/\s+/g, ' ').trim());
+  check('hoje: rega atrasada do vaso da sala, reaplicação da praga', dayList().some(x => /Regar Vaso da sala/.test(x) && /atrasada 1 dia/.test(x)) && dayList().some(x => /Reaplicar tratamento · Cochonilha/.test(x)), JSON.stringify(dayList()));
+  check('vaso sem registros não gera tarefas', !dayList().some(x => /Sem registros/.test(x)) && !doc.body.textContent.includes('Regar Sem registros'));
+  check('resumo mostra tarefas atrasadas', /atrasadas?/.test(g('agendaSummary').textContent), g('agendaSummary').textContent);
+  check('dia com atraso tem o marcador vermelho', doc.querySelector('.cal-day.today').classList.contains('overdue'));
+  const k2 = ymd(2); // Pendente: rega em 2 dias (1 dia atrás + ciclo 3)
+  w.agendaSelect(k2); await tick(20);
+  check('selecionar outro dia lista as tarefas dele (Pendente, sem selo de atraso)', dayList().some(x => /Regar Pendente/.test(x) && !/atrasada/.test(x)), JSON.stringify(dayList()));
+  const k5 = ymd(5);
+  const cell5 = doc.querySelector(`.cal-day[data-key="${k5}"]`);
+  check('rega prevista se repete a cada 3 dias (dia +5 tem ponto de rega)', cell5 && cell5.classList.contains('has'));
+  w.agendaSelect(k5); await tick(20);
+  check('tarefa repetida aparece como "prevista" e sem botão de ação', dayList().some(x => /Regar Pendente/.test(x) && /prevista/.test(x)) && !doc.querySelector('#agendaDayList .alert-item.projected .al-act'));
+  check('"Próximos 7 dias" agrupa por data', doc.querySelectorAll('#agendaUpcoming .ag-group').length >= 1);
+  w.agendaToday(); await tick(20);
+  doc.querySelector('#agendaDayList .k-water .al-act').click(); await tick(100);
+  check('concluir "Regar" pela agenda registra a rega', Date.now() - new Date(vase('v1').lastWater).getTime() < 8000);
+  check('a tarefa some da lista de hoje', !dayList().some(x => /Regar Vaso da sala/.test(x)));
+  const monthBefore = g('calTitle').textContent;
+  w.agendaMonth(1); await tick(20);
+  check('mês seguinte: título muda e continua com 42 dias', g('calTitle').textContent !== monthBefore && doc.querySelectorAll('.cal-day').length === 42);
+  w.agendaMonth(-1); w.agendaToday(); await tick(20);
+
+  console.log('4) Lembretes na agenda');
+  w.openReminderForm(ymd(3)); await tick(30);
+  check('formulário de lembrete pede o vaso e traz o dia escolhido às 09:00', !g('logVaseGroup').hidden && g('logDate').value === ymd(3) + 'T09:00' && g('logActionType').value === 'lembrete' && g('logVaseSelect').options.length === 5);
+  g('logVaseSelect').value = 'v3'; g('logNotes').value = 'Trocar a terra';
+  await w.saveCareLog({ preventDefault() {} }); await tick(80);
+  const rem = vase('v3').history.find(h => h.type === 'lembrete');
+  check('lembrete gravado no vaso escolhido', rem && rem.notes === 'Trocar a terra' && new Date(rem.date).getDate() === day(3).getDate());
+  check('dia do lembrete ganha ponto na agenda', doc.querySelector(`.cal-day[data-key="${ymd(3)}"]`).classList.contains('has'));
+  w.agendaSelect(ymd(3)); await tick(20);
+  check('lembrete listado com horário', dayList().some(x => /Trocar a terra/.test(x) && /09:00/.test(x)), JSON.stringify(dayList()));
+  doc.querySelector('#agendaDayList .k-reminder .al-act').click(); await tick(100);
+  const done = vase('v3').history.find(h => h.notes && h.notes.startsWith('✔'));
+  check('"Feito" transforma o lembrete numa nota concluída', done && done.type === 'nota' && !vase('v3').history.some(h => h.type === 'lembrete'));
+  // lembretes perdidos
+  vase('v4').history.push({ type: 'lembrete', date: iso(-3), notes: 'Perdido há 3 dias' }, { type: 'lembrete', date: iso(-12), notes: 'Muito antigo' });
+  fb.fire('vases'); await tick(40);
+  w.agendaToday(); await tick(20);
+  check('lembrete perdido há ≤ 7 dias aparece hoje como atrasado; o muito antigo não', dayList().some(x => /Perdido há 3 dias/.test(x) && /atrasada 3 dias/.test(x)) && !dayList().some(x => /Muito antigo/.test(x)), JSON.stringify(dayList()));
+
+  console.log('5) Cálculo puro da agenda (agendaItems)');
+  const now = new Date(2026, 9, 7, 10, 0);
+  const sp = { s1: { waterDays: 3, firestoreId: 's1' } };
+  const vs = [{ firestoreId: 'x', name: 'X', speciesId: 's1', lastWater: new Date(2026, 9, 5, 12).toISOString(), history: [] }];
+  const items = w.agendaItems(vs, (v) => sp[v.speciesId], new Date(2026, 9, 1), new Date(2026, 10, 30), now);
+  const waters = items.filter(i => i.kind === 'water');
+  check('próxima rega = último registro + ciclo (08/10) e depois a cada 3 dias', waters[0].date.getDate() === 8 && waters[0].projected === false && waters[1].date.getDate() === 11 && waters[1].projected && waters.length >= 18, waters.slice(0, 3).map(i => i.date.toDateString()).join(' | '));
+  const late = w.agendaItems([{ ...vs[0], lastWater: new Date(2026, 9, 1, 12).toISOString() }], (v) => sp[v.speciesId], new Date(2026, 9, 1), new Date(2026, 9, 20), now).filter(i => i.kind === 'water');
+  check('atrasada vai para hoje (07/10) com "late" = 3 dias, e as repetições partem de hoje', late[0].overdue && late[0].date.getDate() === 7 && late[0].late === 3 && late[1].date.getDate() === 10, late.slice(0, 3).map(i => i.date.getDate()).join());
+  const summary2 = w.pushSummary(vs, (v) => sp[v.speciesId], now);
+  check('resumo para notificações só leva itens não previstos', summary2.length === 1 && summary2[0].k === 'water' && summary2[0].n === 'X' && typeof summary2[0].t === 'number');
+
+  console.log('6) Resolver, reabrir e excluir pragas');
+  w.openVaseDetail('v1'); await tick(40);
+  await w.togglePestResolved('v1', vase('v1').pests[0].id); await tick(60);
+  check('resolver: status, data de resolução e alerta some', vase('v1').pests[0].status === 'resolved' && vase('v1').pests[0].resolvedAt && !doc.querySelector('#remindersList .k-pest') && /Resolvida/.test(g('vasePests').textContent));
+  check('agenda deixa de pedir reaplicação', (w.agendaToday(), w.switchTab('agenda'), !doc.body.textContent.includes('Reaplicar tratamento')));
+  w.openVaseDetail('v1'); await tick(40);
+  await w.togglePestResolved('v1', vase('v1').pests[0].id); await tick(60);
+  check('reabrir volta a ativa', vase('v1').pests[0].status === 'active' && !vase('v1').pests[0].resolvedAt);
+  const pr = w.deletePest('v1', vase('v1').pests[0].id); await tick(30); g('confirmOk').click(); await pr; await tick(60);
+  check('excluir remove a ocorrência', vase('v1').pests.length === 0);
+  [...doc.querySelectorAll('.toast-action')].pop().click(); await tick(80);
+  check('desfazer traz a ocorrência de volta com os tratamentos', vase('v1').pests.length === 1 && vase('v1').pests[0].treatments.length === 1);
+
+  console.log('7) Guardar o diagnóstico da IA num vaso');
+  w.closeActiveDrawer();
+  w.switchTab('ai'); g('aiResult').innerHTML = '<div class="ai-text">1. Folhas com manchas amareladas e pontos escuros.</div>';
+  w.savePestFromDiagnosis(); await tick(30);
+  check('abre o formulário pedindo o vaso, com o texto do diagnóstico', !g('pestVaseGroup').hidden && g('pestVase').options.length === 5 && /manchas amareladas/.test(g('pestNotes').value));
+  g('pestVase').value = 'v3'; g('pestName').value = 'Mancha foliar'; g('pestSeverity').value = 'leve';
+  await w.savePest({ preventDefault() {} }); await tick(80);
+  check('ocorrência criada no vaso escolhido', vase('v3').pests && vase('v3').pests[0].name === 'Mancha foliar' && /manchas/.test(vase('v3').pests[0].notes));
+  check('sem erros de script', t.errors.length === 0, t.errors.join('|'));
+  process.exit(summary() ? 1 : 0);
+})().catch(e => { console.error('FALHA', e); process.exit(2); });
