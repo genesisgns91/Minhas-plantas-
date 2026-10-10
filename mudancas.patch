@@ -1,8 +1,16 @@
 diff --git a/js/ai.js b/js/ai.js
-index e58cfc5..1aaf89a 100644
+index e58cfc5..d3c6baf 100644
 --- a/js/ai.js
 +++ b/js/ai.js
-@@ -43,9 +43,9 @@ function aiLoading() {
+@@ -1,6 +1,7 @@
+ import { S } from './state.js';
+ import { $, esc, normText } from './utils.js';
+ import { WORKERS, callWorkers } from './workers.js';
++import { diagnoseRequest, identifyRequest } from './prompts.js';
+ import { toast } from './ui/feedback.js';
+ import { dataURLToBlob } from './images.js';
+ import { petToxicityIcon } from './care.js';
+@@ -43,9 +44,9 @@ function aiLoading() {
    $('aiPlaceholder').style.display = 'none';
    resultEl.classList.add('show');
    resultEl.innerHTML = '<div class="loader"><i></i><i></i><i></i> <span id="aiLoadMsg">Analisando a foto com IA, aguarde…</span></div>';
@@ -14,6 +22,26 @@ index e58cfc5..1aaf89a 100644
    };
  }
  
+@@ -81,7 +82,8 @@ export async function runAI() {
+ }
+ 
+ async function runDiagnosis(buildOptions, onAttempt) {
+-  const { data, worker } = await callWorkers('diagnose-plant', buildOptions, (d) => d && typeof d.diagnosis === 'string' && d.diagnosis.trim(), onAttempt);
++  const { data, worker } = await callWorkers('diagnose-plant', buildOptions, (d) => d && typeof d.diagnosis === 'string' && d.diagnosis.trim(), onAttempt,
++    { ...diagnoseRequest(), image: S.aiImage });
+   const moon = data.moon_phase
+     ? `<div class="ai-moon">🌙 Fase da lua: <b>${esc(data.moon_phase)}</b>${data.moon_tip ? ' — ' + esc(data.moon_tip) : ''}</div>` : '';
+   $('aiResult').innerHTML = `
+@@ -134,7 +136,8 @@ function normalizeIdentify(d) {
+ 
+ async function runIdentify(buildOptions, onAttempt) {
+   const { data, worker } = await callWorkers('identify-plant', buildOptions,
+-    (d) => d && (d.is_plant === false || d.name || d.common_name || d.plant_name), onAttempt);
++    (d) => d && (d.is_plant === false || d.name || d.common_name || d.plant_name), onAttempt,
++    { ...identifyRequest(), image: S.aiImage });
+   S.lastIdentify = { ...normalizeIdentify(data), worker };
+   renderIdentify();
+ }
 diff --git a/js/config.js b/js/config.js
 index e8b084c..83b10ef 100644
 --- a/js/config.js
@@ -24,110 +52,316 @@ index e8b084c..83b10ef 100644
  
 -export const WORKER_TIMEOUT_MS = 40000;
 +export const WORKER_TIMEOUT_MS = 25000;
+diff --git a/js/prompts.js b/js/prompts.js
+new file mode 100644
+index 0000000..be6a69a
+--- /dev/null
++++ b/js/prompts.js
+@@ -0,0 +1,109 @@
++// Pedidos de IA no formato das Workers "de conversa" (as suas contas .workers.dev): recebem
++// POST em JSON { prompt, imageBase64?, mimeType? } na raiz e devolvem { resposta: "texto" }.
++// Aqui ficam os prompts e a leitura da resposta (a Worker só devolve texto, então o app converte em dados).
++
++function moonInfo(now = new Date()) {
++  const SYNODIC = 29.530588853;
++  const NEW_MOON_REF = Date.UTC(2000, 0, 6, 18, 14);
++  const lunation = ((((now.getTime() - NEW_MOON_REF) / 86400000) % SYNODIC) + SYNODIC) % SYNODIC / SYNODIC;
++  if (lunation < 0.03 || lunation > 0.97) return { phase: 'Nova', tip: 'Seiva concentrada nas raízes. Fase ideal para adubação profunda.' };
++  if (lunation < 0.22) return { phase: 'Crescente Inicial', tip: 'Seiva subindo para os ramos. Boa época para regas.' };
++  if (lunation < 0.28) return { phase: 'Quarto Crescente', tip: 'Ótimo momento para plantio e fortalecimento foliar.' };
++  if (lunation < 0.47) return { phase: 'Crescente Gibosa', tip: 'Desenvolvimento acelerado das folhas.' };
++  if (lunation < 0.53) return { phase: 'Cheia', tip: 'Seiva no topo. Evite podas drásticas hoje!' };
++  if (lunation < 0.72) return { phase: 'Minguante Gibosa', tip: 'Bom período para limpeza de folhas secas.' };
++  if (lunation < 0.78) return { phase: 'Quarto Minguante', tip: 'Momento ideal para poda e controle de pragas.' };
++  return { phase: 'Minguante Final', tip: 'Repouso vegetativo. Bom momento para preparar o solo.' };
++}
++
++// Aceita ```json, texto em volta etc.
++export function parseJsonLoose(text) {
++  const clean = String(text).replace(/```json|```/gi, '').trim();
++  try { return JSON.parse(clean); } catch (e) { /* tenta recortar */ }
++  const a = clean.indexOf('{'), b = clean.lastIndexOf('}');
++  if (a >= 0 && b > a) return JSON.parse(clean.slice(a, b + 1));
++  throw new Error('a IA não devolveu um JSON válido');
++}
++
++export function autoFillRequest(name) {
++  const prompt = `Você é um botânico especialista em plantas ornamentais e de vaso no Brasil.
++Forneça a ficha de cultivo da planta "${name}". Responda SOMENTE com um objeto JSON válido, sem markdown, em português do Brasil, neste formato:
++{
++  "scientific_name": "nome(s) científico(s) e outros nomes populares",
++  "category": "categoria (ex: Trepadeira, Suculenta, Folhagem)",
++  "light": "necessidade de luz e sol direto",
++  "water": "necessidade de rega, em uma frase curta",
++  "water_days": 5,
++  "pruning": "tolerância e cuidados com poda",
++  "humidity": "umidade do ar ideal",
++  "soil": "tipo de solo e drenagem",
++  "fertilizer": "adubação comercial recomendada e frequência",
++  "natural_fertilizer": "opção de adubação natural",
++  "extra_tips": "uma dica extra útil",
++  "observations": "o que evitar",
++  "pet_toxicity": "Segura | Tóxica | Letal",
++  "pet_warning": "explicação breve sobre toxicidade para cães e gatos"
++}
++"water_days" deve ser um número inteiro (dias entre regas em condições médias). "pet_toxicity" deve ser exatamente uma das três opções.`;
++  return {
++    prompt,
++    parse(text) {
++      const out = parseJsonLoose(text);
++      out.water_days = Math.max(1, parseInt(out.water_days, 10) || 5);
++      return out;
++    }
++  };
++}
++
++export function diagnoseRequest() {
++  const moon = moonInfo();
++  const prompt = `Você é um engenheiro agrônomo especialista em plantas ornamentais. Analise a saúde visual da planta nesta imagem.
++Contexto: Brasil, Lua ${moon.phase}.
++Responda em português do Brasil, em texto simples (sem markdown, sem asteriscos), com estas seções numeradas:
++1. Aparência & Saúde Geral
++2. Diagnóstico de problemas/pragas
++3. Plano de Ação Imediato
++4. Dica Lunar (${moon.phase})
++Se a imagem não mostrar uma planta, diga isso com educação.`;
++  return {
++    prompt,
++    parse(text) {
++      const diagnosis = String(text).replace(/\*\*/g, '').trim();
++      if (!diagnosis) throw new Error('resposta vazia');
++      return { diagnosis, moon_phase: moon.phase, moon_tip: moon.tip };
++    }
++  };
++}
++
++export function identifyRequest() {
++  const prompt = `Você é um botânico especialista em identificar plantas por foto.
++Identifique a planta da imagem. Responda SOMENTE com um objeto JSON válido, sem markdown, em português do Brasil:
++{
++  "is_plant": true,
++  "name": "nome popular mais comum no Brasil",
++  "scientific_name": "nome científico",
++  "confidence": 85,
++  "description": "2 frases curtas sobre a planta e como reconhecê-la",
++  "water_days": 7,
++  "light": "necessidade de luz, curta",
++  "pet_toxicity": "Segura | Tóxica | Letal",
++  "alternatives": [ { "name": "outra possibilidade", "scientific_name": "nome científico" } ]
++}
++Regras: "confidence" é um número de 0 a 100 que reflete sua certeza real (use valores baixos se a foto for ruim ou a espécie ambígua).
++"alternatives" tem no máximo 3 itens, só quando houver dúvida real (senão, lista vazia).
++"pet_toxicity" deve ser exatamente Segura, Tóxica ou Letal.
++Se a imagem NÃO mostrar uma planta, responda apenas {"is_plant": false}.`;
++  return {
++    prompt,
++    parse(text) {
++      const out = parseJsonLoose(text);
++      if (out.is_plant === false) return { is_plant: false };
++      if (!out.name) throw new Error('a IA não conseguiu identificar a planta');
++      out.is_plant = true;
++      out.confidence = Math.max(0, Math.min(100, Math.round(Number(out.confidence) || 0)));
++      out.water_days = parseInt(out.water_days, 10) || null;
++      out.alternatives = Array.isArray(out.alternatives) ? out.alternatives.slice(0, 3) : [];
++      return out;
++    }
++  };
++}
+diff --git a/js/species.js b/js/species.js
+index 5b86be7..1282be8 100644
+--- a/js/species.js
++++ b/js/species.js
+@@ -11,6 +11,7 @@ import { friendlyError, toast } from './ui/feedback.js';
+ import { petalRain } from './ui/fx.js';
+ import { askConfirm } from './ui/dialogs.js';
+ import { callWorkers } from './workers.js';
++import { autoFillRequest } from './prompts.js';
+ import { firstName } from './auth.js';
+ 
+ // ==================== RENDER: ESPÉCIES ====================
+@@ -304,7 +305,9 @@ export async function autoFillWithAI(btn) {
+     const { data } = await callWorkers(
+       'auto-fill-plant',
+       () => { const fd = new FormData(); fd.append('plant_name', name); return { method: 'POST', body: fd }; },
+-      (d) => d && (d.scientific_name || d.water_days || d.light || d.soil)
++      (d) => d && (d.scientific_name || d.water_days || d.light || d.soil),
++      undefined,
++      autoFillRequest(name)
+     );
+ 
+     $('specieScientific').value = data.scientific_name || '';
 diff --git a/js/workers.js b/js/workers.js
-index ef11952..e493675 100644
+index ef11952..a32df2b 100644
 --- a/js/workers.js
 +++ b/js/workers.js
-@@ -1,43 +1,77 @@
+@@ -1,48 +1,128 @@
 -// Toda chamada de IA começa SEMPRE pela primeira Worker da lista (em config.js) e, se ela não responder
 -// (erro, cota esgotada, resposta inválida ou demora demais), passa para a próxima, na ordem.
-+// Toda chamada de IA tenta as Workers em ordem (config.js). Se uma falhar (erro, cota esgotada, rota inexistente,
-+// resposta inválida ou demora demais), passa para a próxima. A última que funcionou passa a ser a primeira
-+// tentativa das próximas chamadas (guardada no aparelho), para não perder tempo com Workers fora do ar.
++// Toda chamada de IA tenta as Workers em ordem (config.js). Se uma falhar (erro, cota esgotada, resposta
++// inválida ou demora demais), passa para a próxima. A última que funcionou passa a ser a primeira tentativa.
++//
++// Cada Worker pode falar um de dois "idiomas" — o app descobre sozinho e lembra qual:
++//  • 'legacy' (padrão, o das suas contas): POST JSON { prompt, imageBase64, mimeType } na raiz → { resposta: "texto" }
++//  • 'native' (worker-plantas.js): POST form-data em /diagnose-plant, /identify-plant, /auto-fill-plant → JSON pronto
  import { WORKERS, WORKER_TIMEOUT_MS } from './config.js';
  export { WORKERS };
  
 -// Erro de validação do próprio pedido (400) não adianta tentar em outra conta.
 -function shouldTryNextWorker(status) { return status !== 400; }
 +const LAST_OK_KEY = 'mp-last-ok-worker';
-+
-+// Só o Worker deste app (worker-plantas.js) marca as respostas com service:'minhas-plantas'.
-+// Um 400 dele é erro do pedido (ex.: foto ausente) e não adianta tentar em outro. Um 400 de uma Worker
-+// genérica/de outro projeto só significa "não entendi o formato" — aí o certo é seguir para a próxima.
-+function isFinalError(response, data) {
-+  return response.status === 400 && data && data.service === 'minhas-plantas';
-+}
-+
-+function readLastOk() { try { return localStorage.getItem(LAST_OK_KEY) || ''; } catch (e) { return ''; } }
-+function saveLastOk(name) { try { localStorage.setItem(LAST_OK_KEY, name); } catch (e) { /* sem storage: ignora */ } }
++const PROTO_KEY = 'mp-worker-proto';
+ 
+-// Tenta cada Worker na ordem. `validate(data)` confere se o JSON devolvido tem o formato esperado
+-// (uma Worker que responde 200 com algo inesperado também é pulada).
++function store(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch (e) { return fallback; } }
++function save(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* sem storage: ignora */ } }
 +
 +function orderedWorkers() {
-+  const last = readLastOk();
++  const last = store(LAST_OK_KEY, '');
 +  const list = WORKERS.slice();
 +  const i = list.findIndex(w => w.name === last);
 +  if (i > 0) list.unshift(list.splice(i, 1)[0]);
 +  return list;
 +}
 +
-+// Lê o corpo UMA vez: JSON quando der, senão guarda um trecho do texto para aparecer nos detalhes técnicos.
-+async function readBody(response) {
-+  let text = '';
-+  try { text = await response.text(); } catch (e) { /* corpo ilegível */ }
-+  let data = null;
-+  try { data = text ? JSON.parse(text) : null; } catch (e) { /* não é JSON */ }
-+  return { data, text };
-+}
-+
 +function snippet(text) {
 +  return String(text || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
 +}
- 
- // Tenta cada Worker na ordem. `validate(data)` confere se o JSON devolvido tem o formato esperado
- // (uma Worker que responde 200 com algo inesperado também é pulada).
++
++// Faz o pedido (com limite de tempo) e lê o corpo UMA vez: JSON quando der, senão guarda um trecho do texto.
++async function request(url, options) {
++  const ctrl = new AbortController();
++  const timer = setTimeout(() => ctrl.abort(), WORKER_TIMEOUT_MS);
++  try {
++    const response = await fetch(url, { ...options, signal: ctrl.signal });
++    let text = '';
++    try { text = await response.text(); } catch (e) { /* corpo ilegível */ }
++    let data = null;
++    try { data = text ? JSON.parse(text) : null; } catch (e) { /* não é JSON */ }
++    return { response, data, text };
++  } finally {
++    clearTimeout(timer);
++  }
++}
++
++// Texto da resposta de uma Worker "de conversa" (aceita os formatos mais comuns).
++function extractText(d) {
++  if (!d) return '';
++  if (typeof d === 'string') return d;
++  const pick = d.resposta ?? d.response ?? d.text ?? d.result ?? d.output ?? d.answer ?? d.content ?? d.message;
++  if (typeof pick === 'string') return pick;
++  if (d.choices && d.choices[0] && d.choices[0].message && typeof d.choices[0].message.content === 'string') return d.choices[0].message.content;
++  const parts = d.candidates && d.candidates[0] && d.candidates[0].content && d.candidates[0].content.parts;
++  if (Array.isArray(parts)) return parts.map(p => p.text || '').join('');
++  return '';
++}
++
++function failureReason(response, data, text) {
++  const detail = data && (data.error || data.detail || data.message);
++  return `status ${response.status}${detail ? ' — ' + (typeof detail === 'string' ? detail : JSON.stringify(detail)).slice(0, 160) : (snippet(text) ? ' — ' + snippet(text) : '')}`;
++}
++
++function splitDataURL(dataURL) {
++  const m = /^data:([^;,]+);base64,(.*)$/s.exec(dataURL || '');
++  return m ? { mimeType: m[1], imageBase64: m[2] } : null;
++}
++
++// path/buildOptions = idioma 'native'. legacy = { prompt, image (dataURL, opcional), parse(texto) → dados } = idioma 'legacy'.
  // Devolve { data, worker } com a Worker que respondeu.
- export async function callWorkers(path, buildOptions, validate = () => true, onAttempt = () => {}) {
+-export async function callWorkers(path, buildOptions, validate = () => true, onAttempt = () => {}) {
++export async function callWorkers(path, buildOptions, validate = () => true, onAttempt = () => {}, legacy = null) {
    const failures = [];
 +  const list = orderedWorkers();
++  const protos = store(PROTO_KEY, {});
  
 -  for (let i = 0; i < WORKERS.length; i++) {
 -    const w = WORKERS[i];
 -    onAttempt(w, i);
+-    const ctrl = new AbortController();
+-    const timer = setTimeout(() => ctrl.abort(), WORKER_TIMEOUT_MS);
++  async function tryLegacy(w) {
++    const img = legacy.image ? splitDataURL(legacy.image) : null;
++    const body = { prompt: legacy.prompt, ...(img || {}) };
++    const { response, data, text } = await request(w.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
++    // Quem respondeu é um Worker no formato novo (worker-plantas.js): passa para o idioma 'native'.
++    if (data && data.service === 'minhas-plantas') return { switchTo: 'native' };
++    if (!response.ok) return { reason: failureReason(response, data, text) };
++    const answer = extractText(data) || (data ? '' : text);
++    if (!answer || !answer.trim()) return { reason: 'resposta vazia' };
++    let parsed;
++    try { parsed = legacy.parse(answer); } catch (e) { return { reason: `resposta ilegível (${e.message})` }; }
++    if (!validate(parsed)) return { reason: 'resposta em formato inesperado' };
++    return { data: parsed };
++  }
+ 
+-    try {
+-      const response = await fetch(w.url + path, { ...buildOptions(), signal: ctrl.signal });
+-      let data = null;
+-      try { data = await response.json(); } catch (e) { /* corpo não-JSON */ }
++  async function tryNative(w) {
++    const { response, data, text } = await request(w.url + path, { ...buildOptions() });
++    // 400 de um Worker do app = erro do pedido (ex.: foto ausente): não adianta tentar em outro.
++    if (response.status === 400 && data && data.service === 'minhas-plantas') {
++      throw Object.assign(new Error(data.error || 'Pedido inválido.'), { final: true });
++    }
++    if (response.ok && data && validate(data)) return { data };
++    return { reason: response.ok ? 'resposta em formato inesperado' : failureReason(response, data, text) };
++  }
+ 
+-      if (response.ok && data && validate(data)) {
+-        return { data, worker: w.name };
+-      }
 +  for (let i = 0; i < list.length; i++) {
 +    const w = list[i];
 +    onAttempt(w, i, list.length);
-     const ctrl = new AbortController();
-     const timer = setTimeout(() => ctrl.abort(), WORKER_TIMEOUT_MS);
++    let mode = protos[w.name] || (legacy ? 'legacy' : 'native');
++    const reasons = [];
  
-     try {
-       const response = await fetch(w.url + path, { ...buildOptions(), signal: ctrl.signal });
--      let data = null;
--      try { data = await response.json(); } catch (e) { /* corpo não-JSON */ }
-+      const { data, text } = await readBody(response);
- 
-       if (response.ok && data && validate(data)) {
-+        saveLastOk(w.name);
-         return { data, worker: w.name };
-       }
- 
-+      const detail = data && (data.error || data.detail || data.message);
-       const reason = !response.ok
+-      const reason = !response.ok
 -        ? `status ${response.status}${data && (data.error || data.detail) ? ' — ' + (data.error || data.detail) : ''}`
-+        ? `status ${response.status}${detail ? ' — ' + (typeof detail === 'string' ? detail : JSON.stringify(detail)).slice(0, 160) : (snippet(text) ? ' — ' + snippet(text) : '')}`
-         : 'resposta em formato inesperado';
-       failures.push(`${w.name}: ${reason}`);
-       console.warn(`Worker ${w.name} falhou (${reason}); tentando a próxima da lista…`);
+-        : 'resposta em formato inesperado';
+-      failures.push(`${w.name}: ${reason}`);
+-      console.warn(`Worker ${w.name} falhou (${reason}); tentando a próxima da lista…`);
 -      if (!response.ok && !shouldTryNextWorker(response.status)) {
 -        throw Object.assign(new Error((data && (data.error || data.detail)) || 'Pedido inválido.'), { final: true });
-+      if (isFinalError(response, data)) {
-+        throw Object.assign(new Error(data.error || 'Pedido inválido.'), { final: true });
++    try {
++      for (let step = 0; step < 2; step++) {
++        const r = mode === 'legacy' && legacy ? await tryLegacy(w) : await tryNative(w);
++        if (r.switchTo) { mode = r.switchTo; continue; }
++        if (r.data) {
++          save(LAST_OK_KEY, w.name);
++          if (protos[w.name] !== mode) { protos[w.name] = mode; save(PROTO_KEY, protos); }
++          return { data: r.data, worker: w.name };
++        }
++        reasons.push(r.reason);
++        // Falhou no idioma lembrado: na primeira vez que vemos esta Worker, ainda tenta o outro idioma.
++        if (!protos[w.name] && legacy && mode === 'legacy' && step === 0 && /status (404|405|415)/.test(r.reason || '')) { mode = 'native'; continue; }
++        break;
        }
++      failures.push(`${w.name}: ${reasons.join(' / ') || 'sem resposta'}`);
      } catch (err) {
        if (err.final) throw err;
 -      const reason = err.name === 'AbortError' ? 'demorou demais' : err.message;
 +      const reason = err.name === 'AbortError' ? 'demorou demais'
 +        : (err instanceof TypeError ? 'sem resposta (fora do ar, bloqueada ou sem CORS)' : err.message);
        failures.push(`${w.name}: ${reason}`);
-       console.warn(`Worker ${w.name} falhou (${reason}); tentando a próxima da lista…`);
-     } finally {
+-      console.warn(`Worker ${w.name} falhou (${reason}); tentando a próxima da lista…`);
+-    } finally {
+-      clearTimeout(timer);
+     }
++    console.warn(`Worker ${w.name} falhou (${failures[failures.length - 1].slice(w.name.length + 2)}); tentando a próxima da lista…`);
+   }
+ 
+   const err = new Error('Nenhuma das contas de IA respondeu agora. Tente novamente em instantes.');
 diff --git a/sw.js b/sw.js
-index 77ff857..3b31523 100644
+index 77ff857..32f4d1d 100644
 --- a/sw.js
 +++ b/sw.js
 @@ -1,6 +1,6 @@
  // Service worker do Minhas Plantas: abre o app mesmo sem internet e recebe as notificações (Web Push).
  // Não guarda dados do Firebase nem fotos: só os arquivos do próprio app.
 -const CACHE = 'minhas-plantas-v6';
-+const CACHE = 'minhas-plantas-v7';
++const CACHE = 'minhas-plantas-v8';
  const PUSH_URL = new URL(self.location.href).searchParams.get('push') || '';
  const SHELL = ['./', './index.html', './style.css', './manifest.json'];
  
