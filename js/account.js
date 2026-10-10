@@ -10,6 +10,7 @@ import { getPushState, enablePush, disablePush, setPushHour, sendTestPush } from
 import { isCloudConfigured, isDataUrl, storePhoto } from './images.js';
 import { vasePhotos } from './photos.js';
 import { patchSpecies, patchVase } from './repo.js';
+import { renderRecovery } from './recovery.js';
 
 /** Atualiza saudação, avatar e nome em todo o app. */
 export function renderUser() {
@@ -35,6 +36,7 @@ export async function openSettings() {
   renderUser();
   setTheme(getThemePref());
   renderPhotoStatus();
+  renderRecovery();
   await renderPushSection();
   openDrawer('drawerSettings');
 }

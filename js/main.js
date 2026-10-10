@@ -31,6 +31,7 @@ import * as account from './account.js';
 import * as notifications from './notifications.js';
 import * as schedule from './schedule.js';
 import * as excel from './excel.js';
+import * as recovery from './recovery.js';
 import { lb } from './lightbox.js';
 import { applyAlertsCollapsed, updateDashboard } from './dashboard.js';
 import { renderSpeciesGrid } from './species.js';
@@ -40,7 +41,7 @@ import { switchTab } from './nav.js';
 // As ações (funções exportadas) ficam disponíveis para os atributos onclick="..." do HTML.
 // (Não sobrescreve nada que já seja do próprio navegador, como alert ou open.)
 for (const mod of [utils, feedback, dialogs, fx, drawers, workers, images, photos, filters, care, dashboard, species, nav,
-  vases, carelog, vasedetail, lightbox, gallery, ai, auth, data, pests, agenda, theme, share, backup, account, notifications, schedule, excel]) {
+  vases, carelog, vasedetail, lightbox, gallery, ai, auth, data, pests, agenda, theme, share, backup, account, notifications, schedule, excel, recovery]) {
   for (const [name, fn] of Object.entries(mod)) {
     if (typeof fn === 'function' && !Object.prototype.hasOwnProperty.call(window, name)) window[name] = fn;
   }

@@ -24,18 +24,26 @@ service cloud.firestore {
       return isAdmin() && !('ownerId' in resource.data) && request.resource.data.ownerId == request.auth.uid;
     }
 
+    // Recuperação (⚙️ → Recuperar dados antigos): a conta administradora pode trazer para si qualquer documento.
+    function adminTakeover() { return isAdmin() && request.resource.data.ownerId == request.auth.uid; }
+
     match /species/{id} {
       allow read:   if owns(resource.data) || isAdmin();
       allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
-      allow update: if (owns(resource.data) && ownerUnchanged()) || legacyAdoption();
+      allow update: if (owns(resource.data) && ownerUnchanged()) || legacyAdoption() || adminTakeover();
       allow delete: if owns(resource.data);
     }
 
     match /vases/{id} {
       allow read:   if owns(resource.data) || isAdmin();
       allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
-      allow update: if (owns(resource.data) && ownerUnchanged()) || legacyAdoption();
+      allow update: if (owns(resource.data) && ownerUnchanged()) || legacyAdoption() || adminTakeover();
       allow delete: if owns(resource.data);
+    }
+
+    // Coleção antiga (versão de abril): só leitura, só para a conta administradora, para importar como espécies
+    match /plants/{id} {
+      allow read: if isAdmin();
     }
 
     // Dados da própria conta (ex.: marca de que a migração já foi feita)
