@@ -19,71 +19,96 @@
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
   'Access-Control-Max-Age': '86400'
 };
 
+// 'service' deixa o app saber que quem respondeu é este Worker (um 400 daqui é erro do pedido; de outro Worker, não).
 const json = (body, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS } });
+  new Response(JSON.stringify({ service: 'minhas-plantas', ...body }), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS } });
 
 // ---------- Provedores ----------
-function pickProvider(env) {
-  if (env.GROQ_API_KEY) {
-    return { kind: 'openai-compat', base: 'https://api.groq.com/openai/v1', key: env.GROQ_API_KEY,
-      vision: env.VISION_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct', text: env.TEXT_MODEL || 'llama-3.3-70b-versatile' };
-  }
-  if (env.OPENAI_API_KEY) {
-    return { kind: 'openai-compat', base: 'https://api.openai.com/v1', key: env.OPENAI_API_KEY,
-      vision: env.VISION_MODEL || 'gpt-4o-mini', text: env.TEXT_MODEL || 'gpt-4o-mini' };
-  }
-  if (env.GEMINI_API_KEY) {
-    return { kind: 'gemini', key: env.GEMINI_API_KEY,
-      vision: env.VISION_MODEL || 'gemini-2.0-flash', text: env.TEXT_MODEL || 'gemini-2.0-flash' };
-  }
-  return null;
+// Cada provedor tem uma LISTA de modelos: se o primeiro foi desativado/não existe mais, tenta o próximo.
+// Para forçar um modelo, crie a variável VISION_MODEL / TEXT_MODEL (ela passa a ser a primeira da lista).
+const withFirst = (first, list) => (first ? [first, ...list.filter(m => m !== first)] : list);
+
+function pickProviders(env) {
+  const list = [];
+  if (env.GROQ_API_KEY) list.push({ name: 'groq', kind: 'openai-compat', base: 'https://api.groq.com/openai/v1', key: env.GROQ_API_KEY,
+    vision: withFirst(env.VISION_MODEL, ['meta-llama/llama-4-scout-17b-16e-instruct', 'meta-llama/llama-4-maverick-17b-128e-instruct']),
+    text: withFirst(env.TEXT_MODEL, ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant']) });
+  if (env.OPENAI_API_KEY) list.push({ name: 'openai', kind: 'openai-compat', base: 'https://api.openai.com/v1', key: env.OPENAI_API_KEY,
+    vision: withFirst(env.VISION_MODEL, ['gpt-4o-mini']), text: withFirst(env.TEXT_MODEL, ['gpt-4o-mini']) });
+  if (env.GEMINI_API_KEY) list.push({ name: 'gemini', kind: 'gemini', key: env.GEMINI_API_KEY,
+    vision: withFirst(env.VISION_MODEL, ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']),
+    text: withFirst(env.TEXT_MODEL, ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']) });
+  return list;
 }
 
-// Envia o pedido ao provedor e devolve o texto da resposta. `image` = { mime, base64 } (opcional).
-async function askModel(provider, { prompt, image, asJson }) {
-  const model = image ? provider.vision : provider.text;
+// Erros em que vale tentar OUTRO modelo (modelo inexistente/desativado). Chave inválida ou cota esgotada
+// não melhoram trocando de modelo; nesses casos passamos direto ao próximo provedor.
+const isModelError = (status, msg) => status === 404 || /model|decommission|not found|deprecated|does not exist/i.test(msg || '');
 
+async function callOnce(provider, model, { prompt, image, asJson }) {
   if (provider.kind === 'gemini') {
     const parts = [{ text: prompt }];
     if (image) parts.push({ inline_data: { mime_type: image.mime, data: image.base64 } });
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${provider.key}`, {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': provider.key },
       body: JSON.stringify({
         contents: [{ role: 'user', parts }],
         generationConfig: { temperature: 0.3, ...(asJson ? { responseMimeType: 'application/json' } : {}) }
       })
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(`Gemini ${res.status}: ${(data.error && data.error.message) || 'erro'}`);
+    if (!res.ok) throw Object.assign(new Error(`Gemini ${model} ${res.status}: ${(data.error && data.error.message) || 'erro'}`), { status: res.status });
     const text = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts
       && data.candidates[0].content.parts.map(p => p.text || '').join('');
-    if (!text) throw new Error('Gemini devolveu resposta vazia');
+    if (!text) throw new Error(`Gemini ${model} devolveu resposta vazia`);
     return text;
   }
 
   const content = [{ type: 'text', text: prompt }];
   if (image) content.push({ type: 'image_url', image_url: { url: `data:${image.mime};base64,${image.base64}` } });
-  const res = await fetch(`${provider.base}/chat/completions`, {
+  const call = (withJsonMode) => fetch(`${provider.base}/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${provider.key}` },
     body: JSON.stringify({
       model,
       temperature: 0.3,
       messages: [{ role: 'user', content }],
-      ...(asJson ? { response_format: { type: 'json_object' } } : {})
+      ...(withJsonMode ? { response_format: { type: 'json_object' } } : {})
     })
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(`${res.status}: ${(data.error && data.error.message) || 'erro do provedor'}`);
+  let res = await call(asJson);
+  let data = await res.json().catch(() => ({}));
+  // Alguns modelos não aceitam response_format: repete sem ele (o texto é extraído por parseJsonLoose).
+  if (!res.ok && asJson && res.status === 400 && /response_format|json/i.test((data.error && data.error.message) || '')) {
+    res = await call(false);
+    data = await res.json().catch(() => ({}));
+  }
+  if (!res.ok) throw Object.assign(new Error(`${provider.name} ${model} ${res.status}: ${(data.error && data.error.message) || 'erro do provedor'}`), { status: res.status });
   const text = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
-  if (!text) throw new Error('Provedor devolveu resposta vazia');
+  if (!text) throw new Error(`${provider.name} ${model} devolveu resposta vazia`);
   return text;
+}
+
+// Percorre provedores → modelos até um responder. Só falha se TODOS falharem (a mensagem junta os motivos).
+async function askModel(providers, req) {
+  const errors = [];
+  for (const provider of providers) {
+    for (const model of (req.image ? provider.vision : provider.text)) {
+      try {
+        return await callOnce(provider, model, req);
+      } catch (err) {
+        errors.push(err.message);
+        if (!isModelError(err.status, err.message)) break; // chave/cota/rede: próximo provedor
+      }
+    }
+  }
+  throw new Error(errors.join(' | ') || 'Nenhum provedor respondeu');
 }
 
 // Extrai o JSON mesmo que o modelo coloque ```json ou texto em volta
@@ -215,14 +240,18 @@ const ROUTES = { 'auto-fill-plant': autoFill, 'diagnose-plant': diagnose, 'ident
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+    // Teste rápido: abra o endereço do Worker no navegador. Mostra se as rotas existem e se há chave de IA.
+    if (request.method === 'GET') {
+      return json({ ok: true, routes: Object.keys(ROUTES), providers: pickProviders(env).map(p => p.name) });
+    }
     if (request.method !== 'POST') return json({ error: 'Use POST.' }, 405);
 
     const route = new URL(request.url).pathname.replace(/^\/+|\/+$/g, '').replace(/^api\//, '');
     const handler = ROUTES[route];
     if (!handler) return json({ error: `Rota desconhecida: ${route || '/'}` }, 404);
 
-    const provider = pickProvider(env);
-    if (!provider) return json({ error: 'Nenhuma chave de IA configurada (GROQ_API_KEY, OPENAI_API_KEY ou GEMINI_API_KEY).' }, 500);
+    const provider = pickProviders(env);
+    if (!provider.length) return json({ error: 'Nenhuma chave de IA configurada (GROQ_API_KEY, OPENAI_API_KEY ou GEMINI_API_KEY).' }, 502);
 
     try {
       const form = await request.formData();
