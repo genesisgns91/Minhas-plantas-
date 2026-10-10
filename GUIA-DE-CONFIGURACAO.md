@@ -25,8 +25,8 @@ Faça na ordem. Cada etapa leva poucos minutos.
 > Importante: publique as regras **depois** de enviar o app novo ao GitHub. O app antigo (sem login) deixa de funcionar com as regras novas.
 
 ## 4. Fotos no Cloudinary
-1. Abra `js/config.js` e troque `SEU_CLOUD_NAME` pelo **Cloud name** que aparece no painel do Cloudinary (Dashboard, canto superior esquerdo).
-2. O preset **Unsigned** já está listado (`c5wrwkf8`; se esse nome não existir o app tenta `MyPlants`). Se o seu tiver outro nome, acrescente na lista `presets`.
+1. Abra `js/config.js` e o **Cloud name** (`c5wrwkf8`) já está preenchido; se mudar de conta, troque-o pelo valor do painel que aparece no painel do Cloudinary (Dashboard, canto superior esquerdo).
+2. O preset **Unsigned** já está listado (`MyPlants`). Se o seu tiver outro nome, acrescente na lista `presets`.
 3. Nas configurações do app (⚙️), o botão **“Enviar fotos antigas para o Cloudinary”** move as fotos que já estavam no banco.
 
 ## 5. Notificações no celular (Cloudflare Workers — grátis)

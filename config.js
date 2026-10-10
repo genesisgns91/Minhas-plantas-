@@ -15,9 +15,9 @@ export const ADMIN_EMAIL = 'genesisgns@gmail.com';
 // Hospedagem das fotos (Cloudinary, plano gratuito). Preencha o "Cloud name" que aparece no painel do Cloudinary.
 // Enquanto não for preenchido, as fotos continuam sendo gravadas dentro do Firestore (com limite de tamanho).
 export const CLOUDINARY = {
-  cloudName: 'SEU_CLOUD_NAME',
+  cloudName: 'c5wrwkf8',
   // Nome do preset "Unsigned". Se o primeiro não existir, o app tenta o próximo da lista.
-  presets: ['c5wrwkf8', 'MyPlants']
+  presets: ['MyPlants']
 };
 
 // Endereço do Worker de notificações (veja GUIA-DE-CONFIGURACAO.md). Vazio = notificações desativadas.
