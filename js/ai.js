@@ -1,6 +1,7 @@
 import { S } from './state.js';
 import { $, esc, normText } from './utils.js';
 import { WORKERS, callWorkers } from './workers.js';
+import { diagnoseRequest, identifyRequest } from './prompts.js';
 import { toast } from './ui/feedback.js';
 import { dataURLToBlob } from './images.js';
 import { petToxicityIcon } from './care.js';
@@ -43,9 +44,9 @@ function aiLoading() {
   $('aiPlaceholder').style.display = 'none';
   resultEl.classList.add('show');
   resultEl.innerHTML = '<div class="loader"><i></i><i></i><i></i> <span id="aiLoadMsg">Analisando a foto com IA, aguarde…</span></div>';
-  return (w, i) => {
+  return (w, i, total) => {
     const el = $('aiLoadMsg');
-    if (el && i > 0) el.textContent = `Tentando outra conta de IA (${i + 1} de ${WORKERS.length})…`;
+    if (el && i > 0) el.textContent = `Tentando outra conta de IA (${i + 1} de ${total || WORKERS.length})…`;
   };
 }
 
@@ -81,7 +82,8 @@ export async function runAI() {
 }
 
 async function runDiagnosis(buildOptions, onAttempt) {
-  const { data, worker } = await callWorkers('diagnose-plant', buildOptions, (d) => d && typeof d.diagnosis === 'string' && d.diagnosis.trim(), onAttempt);
+  const { data, worker } = await callWorkers('diagnose-plant', buildOptions, (d) => d && typeof d.diagnosis === 'string' && d.diagnosis.trim(), onAttempt,
+    { ...diagnoseRequest(), image: S.aiImage });
   const moon = data.moon_phase
     ? `<div class="ai-moon">🌙 Fase da lua: <b>${esc(data.moon_phase)}</b>${data.moon_tip ? ' — ' + esc(data.moon_tip) : ''}</div>` : '';
   $('aiResult').innerHTML = `
@@ -134,7 +136,8 @@ function normalizeIdentify(d) {
 
 async function runIdentify(buildOptions, onAttempt) {
   const { data, worker } = await callWorkers('identify-plant', buildOptions,
-    (d) => d && (d.is_plant === false || d.name || d.common_name || d.plant_name), onAttempt);
+    (d) => d && (d.is_plant === false || d.name || d.common_name || d.plant_name), onAttempt,
+    { ...identifyRequest(), image: S.aiImage });
   S.lastIdentify = { ...normalizeIdentify(data), worker };
   renderIdentify();
 }

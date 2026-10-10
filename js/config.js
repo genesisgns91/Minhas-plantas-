@@ -37,4 +37,4 @@ export const WORKERS = [
   { name: 'interno',                 url: 'https://interno.genesisgns.workers.dev/' }
 ];
 
-export const WORKER_TIMEOUT_MS = 40000;
+export const WORKER_TIMEOUT_MS = 25000;

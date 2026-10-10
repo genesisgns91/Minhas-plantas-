@@ -11,6 +11,7 @@ import { friendlyError, toast } from './ui/feedback.js';
 import { petalRain } from './ui/fx.js';
 import { askConfirm } from './ui/dialogs.js';
 import { callWorkers } from './workers.js';
+import { autoFillRequest } from './prompts.js';
 import { firstName } from './auth.js';
 
 // ==================== RENDER: ESPÉCIES ====================
@@ -304,7 +305,9 @@ export async function autoFillWithAI(btn) {
     const { data } = await callWorkers(
       'auto-fill-plant',
       () => { const fd = new FormData(); fd.append('plant_name', name); return { method: 'POST', body: fd }; },
-      (d) => d && (d.scientific_name || d.water_days || d.light || d.soil)
+      (d) => d && (d.scientific_name || d.water_days || d.light || d.soil),
+      undefined,
+      autoFillRequest(name)
     );
 
     $('specieScientific').value = data.scientific_name || '';
