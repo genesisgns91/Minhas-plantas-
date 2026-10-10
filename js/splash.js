@@ -1,10 +1,12 @@
-// Abertura do app: a animação da muda brotando dura ~3,4 s. Mesmo que o login resolva antes, a tela
-// fica até o fim da animação (toque para pular). Em recarregamentos na mesma aba ela é mais curta.
+// Abertura do app. O modo é escolhido no <head> (index.html) e fica em <html data-splash>:
+//  • "full"  = muda brotando (~3,4 s) — só ao abrir o app no celular (toque para pular);
+//  • "quick" = brotinho curto (~0,7 s) — ao recarregar/atualizar a página, ao voltar, ou no computador.
+// Mesmo que o login resolva antes, a tela fica até o fim da animação do modo escolhido.
 const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-let seen = false;
-try { seen = sessionStorage.getItem('mp-splash-seen') === '1'; sessionStorage.setItem('mp-splash-seen', '1'); } catch (e) { /* sem storage */ }
+const full = document.documentElement.dataset.splash === 'full';
 
-const MIN_MS = window.__TEST__ ? 0 : reduced ? 700 : seen ? 1700 : 3500;
+const MIN_MS = window.__TEST__ ? 0 : reduced ? (full ? 700 : 300) : (full ? 3500 : 700);
+const OUT_MS = full ? 760 : 300;
 const startedAt = performance.now();
 let skipped = false;
 let timer = null;
@@ -16,7 +18,7 @@ function finish() {
   if (!s || s.hidden) return;
   if (window.__TEST__ || reduced) { s.hidden = true; return; }
   s.classList.add('splash-out');
-  setTimeout(() => { s.hidden = true; s.classList.remove('splash-out'); }, 760);
+  setTimeout(() => { s.hidden = true; s.classList.remove('splash-out'); }, OUT_MS);
 }
 
 /** Mostra a abertura (enquanto a sessão carrega). */

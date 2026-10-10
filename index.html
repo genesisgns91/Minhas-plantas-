@@ -20,6 +20,25 @@
       } catch (e) {}
     })();
   </script>
+  <script>
+    /* Escolhe a abertura ANTES do primeiro desenho: "full" = muda brotando (só ao abrir o app no celular);
+       "quick" = brotinho curtinho (recarregar/atualizar a página, voltar, ou computador). */
+    (function () {
+      var mode = 'quick';
+      try {
+        var nav = (performance.getEntriesByType && performance.getEntriesByType('navigation')[0]) || {};
+        var again = nav.type === 'reload' || nav.type === 'back_forward';
+        var launched = sessionStorage.getItem('mp-launched') === '1';
+        var ua = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+        var coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+        var small = Math.min(screen.width, screen.height) <= 900;
+        var mobile = ua || (coarse && small);
+        if (mobile && !launched && !again) mode = 'full';
+        sessionStorage.setItem('mp-launched', '1');
+      } catch (e) {}
+      document.documentElement.dataset.splash = mode;
+    })();
+  </script>
   <link rel="manifest" href="manifest.json" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -39,7 +58,7 @@
 
   <!-- Abertura do app: uma muda brota (animação em CSS; toque para pular) -->
   <div class="splash" id="splash" role="status" aria-live="polite">
-    <div class="sp-stage">
+    <div class="sp-stage sp-full-only">
       <svg class="sp-svg" viewBox="0 0 240 300" aria-hidden="true" focusable="false">
         <defs>
           <radialGradient id="spGlow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#e3ffcf" stop-opacity=".6"/><stop offset=".55" stop-color="#9be08a" stop-opacity=".16"/><stop offset="1" stop-color="#9be08a" stop-opacity="0"/></radialGradient>
@@ -66,6 +85,16 @@
       </svg>
       <div class="sp-title" aria-hidden="true">Minhas Plantas</div>
       <p>Preparando seu jardim…</p>
+    </div>
+    <div class="sp-quick-only">
+      <svg class="sq-svg" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+        <ellipse class="sq-soil" cx="32" cy="52" rx="19" ry="5" fill="#6b4a33"/>
+        <path class="sq-stem" pathLength="1" d="M32 51C31 43 34 37 32 28" fill="none" stroke="#c8f0b0" stroke-width="3.2" stroke-linecap="round"/>
+        <g transform="translate(32.5 38) rotate(-38)"><g class="sq-leaf" style="--d:.28s"><path d="M0 0C5 -8 18 -9 27 -1C18 6 6 7 0 0Z" fill="#9be08a"/></g></g>
+        <g transform="translate(31.5 38) scale(-1 1) rotate(-38)"><g class="sq-leaf" style="--d:.34s"><path d="M0 0C5 -8 18 -9 27 -1C18 6 6 7 0 0Z" fill="#78c874"/></g></g>
+        <g transform="translate(32 28)"><g class="sq-leaf sq-top" style="--d:.42s"><path d="M0 0C-7 -7 -6 -16 0 -22C6 -16 7 -7 0 0Z" fill="#b9f0a2"/></g></g>
+      </svg>
+      <p>Atualizando…</p>
     </div>
   </div>
 

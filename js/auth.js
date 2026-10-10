@@ -28,8 +28,9 @@ export function firstName(user) {
 export function initAuth(onUser) {
   setAppState('auth-loading');
   setTimeout(() => {
-    const msg = document.querySelector('#splash p');
-    if (document.body.classList.contains('auth-loading') && msg) msg.textContent = 'Está demorando mais que o normal… confira sua conexão com a internet.';
+    if (document.body.classList.contains('auth-loading')) {
+      document.querySelectorAll('#splash p').forEach(msg => { msg.textContent = 'Está demorando mais que o normal… confira sua conexão com a internet.'; });
+    }
   }, 12000);
   getRedirectResult(auth).catch(err => showLoginError(err));
   onAuthStateChanged(auth, (user) => { S.user = user; onUser(user); });

@@ -988,6 +988,18 @@ body.auth-loading .app-layout, body.auth-loading .bottom-nav, body.signed-out .a
 @keyframes spTitle { from { opacity: 0; transform: translateY(18px); letter-spacing: .32em; filter: blur(8px); } to { opacity: 1; transform: none; letter-spacing: .02em; filter: blur(0); } }
 @keyframes spFade { from { opacity: 0; } to { opacity: .85; } }
 @keyframes spOut { to { opacity: 0; transform: scale(1.08); visibility: hidden; } }
+/* Abertura curta (recarregar/atualizar) × abertura completa (abrir o app no celular) */
+html:not([data-splash="quick"]) .sp-quick-only { display: none; }
+html[data-splash="quick"] .sp-full-only { display: none; }
+.sp-quick-only { display: flex; flex-direction: column; align-items: center; gap: .5rem; }
+.sq-svg { width: 84px; height: 84px; overflow: visible; filter: drop-shadow(0 6px 12px rgba(0, 0, 0, .3)); }
+.sq-svg * { transform-box: view-box; }
+.sq-soil { transform-box: fill-box; transform-origin: 50% 50%; animation: sqSoil .22s ease-out both; }
+.sq-stem { stroke-dasharray: 1; animation: spGrow .34s .08s cubic-bezier(.3, .7, .25, 1) both; }
+.sq-leaf { transform-origin: 0 0; animation: spLeaf .3s var(--d) cubic-bezier(.3, 1.4, .5, 1) both; }
+.sq-quick-p, .sp-quick-only p { margin: 0; font-size: .85rem; font-weight: 500; opacity: .85; animation: spFade .3s .35s ease both; }
+html[data-splash="quick"] .splash.splash-out { animation-duration: .28s; }
+@keyframes sqSoil { from { transform: scaleX(.3); opacity: 0; } to { transform: scaleX(1); opacity: 1; } }
 
 .login { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: 1.5rem; position: relative; overflow: hidden; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200' fill='none' stroke='%23ffffff' stroke-opacity='.10' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M100 190C40 170 10 120 30 60 50 20 110 10 150 40c35 30 30 100-10 130-12 9-26 15-40 20z'/%3E%3Cpath d='M100 190V40M100 150L55 120M100 150l45-30M100 110L60 82M100 110l40-28M100 72L74 52M100 72l26-20'/%3E%3C/svg%3E") no-repeat -80px calc(100% + 60px) / 460px, url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200' fill='none' stroke='%23ffffff' stroke-opacity='.10' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M100 190C40 170 10 120 30 60 50 20 110 10 150 40c35 30 30 100-10 130-12 9-26 15-40 20z'/%3E%3Cpath d='M100 190V40M100 150L55 120M100 150l45-30M100 110L60 82M100 110l40-28M100 72L74 52M100 72l26-20'/%3E%3C/svg%3E") no-repeat calc(100% + 100px) -80px / 420px, radial-gradient(600px 360px at 85% 5%, rgba(233, 168, 181, .22), transparent 70%), linear-gradient(160deg, var(--side-a), var(--side-c)); }
 .login-card { width: min(100%, 440px); background: var(--paper); border: 1px solid var(--mist); border-radius: 32px; padding: 2.4rem 2rem 2rem; box-shadow: var(--shadow-lg); text-align: center; animation: pop .6s var(--ease-spring) both; }
