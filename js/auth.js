@@ -5,6 +5,7 @@ import {
   auth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut
 } from './firebase.js';
 import { toast } from './ui/feedback.js';
+import { showSplash, hideSplash } from './splash.js';
 
 export function setAppState(state) {
   document.body.classList.remove('auth-loading', 'signed-out', 'signed-in');
@@ -15,8 +16,7 @@ export function setAppState(state) {
   [app, bottom].forEach(el => { if (el) { el.inert = hide; el.setAttribute('aria-hidden', String(hide)); } });
   const login = $('loginScreen');
   if (login) { login.hidden = state !== 'signed-out'; login.inert = state !== 'signed-out'; }
-  const splash = $('splash');
-  if (splash) splash.hidden = state !== 'auth-loading';
+  if (state === 'auth-loading') showSplash(); else hideSplash();
 }
 
 export function firstName(user) {

@@ -37,10 +37,36 @@
 <body class="auth-loading">
   <a class="skip-link" href="#main">Pular para o conteúdo</a>
 
-  <!-- Carregando a sessão -->
+  <!-- Abertura do app: uma muda brota (animação em CSS; toque para pular) -->
   <div class="splash" id="splash" role="status" aria-live="polite">
-    <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="rgba(255,255,255,.12)"/><path d="M22 44h20l-2.5 12h-15z" fill="#c16e41"/><rect x="20" y="40" width="24" height="6" rx="3" fill="#d98557"/><path d="M32 40V24" stroke="#bfe3b4" stroke-width="2.6" stroke-linecap="round" fill="none"/><path d="M32 30C22 30 16 24 16 15c9 0 16 5 16 15z" fill="#8fcf80"/><path d="M32 26c0-9 6-15 16-15 0 9-6 15-16 15z" fill="#b6e6a8"/></svg>
-    <p>Preparando seu jardim…</p>
+    <div class="sp-stage">
+      <svg class="sp-svg" viewBox="0 0 240 300" aria-hidden="true" focusable="false">
+        <defs>
+          <radialGradient id="spGlow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#e3ffcf" stop-opacity=".6"/><stop offset=".55" stop-color="#9be08a" stop-opacity=".16"/><stop offset="1" stop-color="#9be08a" stop-opacity="0"/></radialGradient>
+          <linearGradient id="spLeaf" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4f9a52"/><stop offset="1" stop-color="#b9f0a2"/></linearGradient>
+          <linearGradient id="spSoil" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#94613f"/><stop offset="1" stop-color="#4a2f20"/></linearGradient>
+          <radialGradient id="spPetal" cx="50%" cy="85%" r="80%"><stop offset="0" stop-color="#fff1f4"/><stop offset="1" stop-color="#f2a3b6"/></radialGradient>
+          <linearGradient id="spDrop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfeaff"/><stop offset="1" stop-color="#5aa7c7"/></linearGradient>
+        </defs>
+        <circle class="sp-glow" cx="120" cy="165" r="118" fill="url(#spGlow)"/>
+        <path class="sp-drop" d="M120 8C127 20 130 25 130 29a10 10 0 0 1-20 0c0-4 3-9 10-21z" fill="url(#spDrop)"/>
+        <ellipse class="sp-ripple" cx="120" cy="233" rx="34" ry="6" fill="none" stroke="#bfeaff" stroke-width="2"/>
+        <path class="sp-soil" d="M34 266C54 240 88 231 120 231S186 240 206 266Z" fill="url(#spSoil)"/>
+        <g class="sp-plant">
+          <path class="sp-stem" pathLength="1" d="M120 233C117 206 126 186 120 160C115 140 124 126 121 109" fill="none" stroke="#c8f0b0" stroke-width="5" stroke-linecap="round"/>
+      <g transform="translate(119 205) rotate(-42) scale(0.75)"><g class="sp-leaf" style="--d:1.15s"><path d="M0 0C10 -15 34 -17 50 -2C34 11 12 13 0 0Z" fill="url(#spLeaf)"/><path d="M2 0Q26 -4 46 -2" stroke="#eaffdc" stroke-opacity=".55" stroke-width="1.4" fill="none" stroke-linecap="round"/></g></g>
+      <g transform="translate(119 205) scale(-1 1) rotate(-42) scale(0.75)"><g class="sp-leaf" style="--d:1.15s"><path d="M0 0C10 -15 34 -17 50 -2C34 11 12 13 0 0Z" fill="url(#spLeaf)"/><path d="M2 0Q26 -4 46 -2" stroke="#eaffdc" stroke-opacity=".55" stroke-width="1.4" fill="none" stroke-linecap="round"/></g></g>
+      <g transform="translate(122 172) rotate(-34)"><g class="sp-leaf" style="--d:1.5s"><path d="M0 0C10 -15 34 -17 50 -2C34 11 12 13 0 0Z" fill="url(#spLeaf)"/><path d="M2 0Q26 -4 46 -2" stroke="#eaffdc" stroke-opacity=".55" stroke-width="1.4" fill="none" stroke-linecap="round"/></g></g>
+      <g transform="translate(122 172) scale(-1 1) rotate(-34)"><g class="sp-leaf" style="--d:1.5s"><path d="M0 0C10 -15 34 -17 50 -2C34 11 12 13 0 0Z" fill="url(#spLeaf)"/><path d="M2 0Q26 -4 46 -2" stroke="#eaffdc" stroke-opacity=".55" stroke-width="1.4" fill="none" stroke-linecap="round"/></g></g>
+      <g transform="translate(121 140) rotate(-62) scale(0.85)"><g class="sp-leaf" style="--d:1.85s"><path d="M0 0C10 -15 34 -17 50 -2C34 11 12 13 0 0Z" fill="url(#spLeaf)"/><path d="M2 0Q26 -4 46 -2" stroke="#eaffdc" stroke-opacity=".55" stroke-width="1.4" fill="none" stroke-linecap="round"/></g></g>
+      <g transform="translate(121 140) scale(-1 1) rotate(-62) scale(0.85)"><g class="sp-leaf" style="--d:1.85s"><path d="M0 0C10 -15 34 -17 50 -2C34 11 12 13 0 0Z" fill="url(#spLeaf)"/><path d="M2 0Q26 -4 46 -2" stroke="#eaffdc" stroke-opacity=".55" stroke-width="1.4" fill="none" stroke-linecap="round"/></g></g>
+      <g transform="translate(121 108)"><g class="sp-flower"><g transform="rotate(0)"><g class="sp-petal" style="--i:0"><ellipse cx="0" cy="-13" rx="7.5" ry="13" fill="url(#spPetal)"/></g></g><g transform="rotate(60)"><g class="sp-petal" style="--i:1"><ellipse cx="0" cy="-13" rx="7.5" ry="13" fill="url(#spPetal)"/></g></g><g transform="rotate(120)"><g class="sp-petal" style="--i:2"><ellipse cx="0" cy="-13" rx="7.5" ry="13" fill="url(#spPetal)"/></g></g><g transform="rotate(180)"><g class="sp-petal" style="--i:3"><ellipse cx="0" cy="-13" rx="7.5" ry="13" fill="url(#spPetal)"/></g></g><g transform="rotate(240)"><g class="sp-petal" style="--i:4"><ellipse cx="0" cy="-13" rx="7.5" ry="13" fill="url(#spPetal)"/></g></g><g transform="rotate(300)"><g class="sp-petal" style="--i:5"><ellipse cx="0" cy="-13" rx="7.5" ry="13" fill="url(#spPetal)"/></g></g><circle r="6.5" fill="#f2c14e"/><circle r="2.6" cx="-1.5" cy="-1.5" fill="#fff3c4"/></g></g>
+        </g>
+        <g class="sp-sparks" fill="#f4ffd9"><circle class="sp-spark" cx="78" cy="150" r="2.2" style="--s:2.5s"/><circle class="sp-spark" cx="166" cy="132" r="2.8" style="--s:2.7s"/><circle class="sp-spark" cx="92" cy="96" r="1.8" style="--s:2.9s"/><circle class="sp-spark" cx="152" cy="84" r="2.2" style="--s:3.1s"/><circle class="sp-spark" cx="60" cy="200" r="2.4" style="--s:3.3s"/><circle class="sp-spark" cx="182" cy="190" r="1.9" style="--s:3.5s"/><circle class="sp-spark" cx="121" cy="60" r="2.6" style="--s:3.0s"/></g>
+      </svg>
+      <div class="sp-title" aria-hidden="true">Minhas Plantas</div>
+      <p>Preparando seu jardim…</p>
+    </div>
   </div>
 
   <!-- Entrar -->

@@ -1,6 +1,6 @@
 // Service worker do Minhas Plantas: abre o app mesmo sem internet e recebe as notificações (Web Push).
 // Não guarda dados do Firebase nem fotos: só os arquivos do próprio app.
-const CACHE = 'minhas-plantas-v9';
+const CACHE = 'minhas-plantas-v10';
 const PUSH_URL = new URL(self.location.href).searchParams.get('push') || '';
 const SHELL = ['./', './index.html', './style.css', './manifest.json'];
 
