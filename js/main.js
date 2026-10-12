@@ -43,7 +43,8 @@ import { switchTab } from './nav.js';
 for (const mod of [utils, feedback, dialogs, fx, drawers, workers, images, photos, filters, care, dashboard, species, nav,
   vases, carelog, vasedetail, lightbox, gallery, ai, auth, data, pests, agenda, theme, share, backup, account, notifications, schedule, excel, recovery]) {
   for (const [name, fn] of Object.entries(mod)) {
-    if (typeof fn === 'function' && !Object.prototype.hasOwnProperty.call(window, name)) window[name] = fn;
+    // registra se o nome ainda não é uma função (ex.: alert/open do navegador ficam intactos; um <button id="lbPrev"> não bloqueia lbPrev())
+    if (typeof fn === 'function' && typeof window[name] !== 'function') window[name] = fn;
   }
 }
 if (window.__TEST__) window.__app = { S, lb, activeFilters, CLOUDINARY };

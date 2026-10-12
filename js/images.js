@@ -68,6 +68,8 @@ export function compressImage(file, { maxDim = 1280, initialQuality = 0.75, maxB
 // precisam ser bem pequenas. Com Cloudinary elas são hospedadas fora e podem ter mais qualidade.
 export const GALLERY_OPTS = { maxDim: 1080, initialQuality: 0.72, maxBytes: 95000 };
 export const CLOUD_OPTS = { maxDim: 1600, initialQuality: 0.82, maxBytes: 900000 };
+// Foto enviada à IA: 1024 px bastam para reconhecer a planta e sobem rápido mesmo em 4G (e passam em qualquer limite de Worker).
+export const AI_OPTS = { maxDim: 1024, initialQuality: 0.82, maxBytes: 350000 };
 export const DOC_LIMIT_BYTES = 1048576;
 export const DOC_SAFE_BYTES = 980000;
 
@@ -206,7 +208,7 @@ function wireImagePicker(galleryInputId, cameraInputId, previewId, onSelect, opt
 
 wireImagePicker('speciePhotoGallery', 'speciePhotoCamera', 'speciePhotoPreview', (d) => { S.speciePhoto = d; }, () => photoOptions(false));
 wireImagePicker('vasePhotoGallery', 'vasePhotoCamera', 'vasePhotoPreview', (d) => { S.vasePhoto = d; }, () => photoOptions(true));
-const processAiFile = wireImagePicker('aiImageGallery', 'aiImageCamera', 'aiImagePreview', (d) => { S.aiImage = d; });
+const processAiFile = wireImagePicker('aiImageGallery', 'aiImageCamera', 'aiImagePreview', (d) => { S.aiImage = d; }, AI_OPTS);
 
 // Arrastar e soltar foto no diagnóstico
 (function initDropzone() {

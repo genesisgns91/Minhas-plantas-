@@ -6,6 +6,7 @@ import { friendlyError, toast } from './ui/feedback.js';
 import { filteredSpecies } from './filters.js';
 import { askConfirm } from './ui/dialogs.js';
 import { $, esc, plural } from './utils.js';
+import { vasesByPlant } from './care.js';
 import { closeActiveDrawer, openDrawer } from './ui/drawers.js';
 
 // ==================== CUIDADOS ====================
@@ -91,7 +92,7 @@ export function openCareLogDrawer(vaseId) {
 export function openReminderForm(dayKey) {
   if (!S.vases.length) { toast('Cadastre um vaso primeiro para criar lembretes.', 'error'); return; }
   const select = $('logVaseSelect');
-  select.innerHTML = '<option value="">Escolha o vaso…</option>' + S.vases.map(v => {
+  select.innerHTML = '<option value="">Escolha o vaso…</option>' + vasesByPlant().map(v => {
     const sp = S.species.find(x => x.firestoreId === v.speciesId);
     return `<option value="${esc(v.firestoreId)}">${esc(v.name)}${sp ? ' · ' + esc(sp.name) : ''}</option>`;
   }).join('');

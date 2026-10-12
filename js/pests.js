@@ -2,7 +2,7 @@
 import { S } from './state.js';
 import { $, esc, fmtDate, plural, daysBetween } from './utils.js';
 import { patchVase } from './repo.js';
-import { activePests, SEVERITIES, pestNextDate } from './care.js';
+import { activePests, SEVERITIES, pestNextDate, vasesByPlant } from './care.js';
 import { openDrawer, closeActiveDrawer } from './ui/drawers.js';
 import { toast, friendlyError } from './ui/feedback.js';
 import { askConfirm } from './ui/dialogs.js';
@@ -79,7 +79,7 @@ export function openPestForm(vaseId, pestId, prefill = {}) {
   const choose = !vaseId; // vindo do diagnóstico da IA: escolher o vaso
   $('pestVaseGroup').hidden = !choose;
   if (choose) {
-    select.innerHTML = '<option value="">Escolha o vaso…</option>' + S.vases.map(v => {
+    select.innerHTML = '<option value="">Escolha o vaso…</option>' + vasesByPlant().map(v => {
       const sp = S.species.find(s => s.firestoreId === v.speciesId);
       return `<option value="${esc(v.firestoreId)}">${esc(v.name)}${sp ? ' · ' + esc(sp.name) : ''}</option>`;
     }).join('');

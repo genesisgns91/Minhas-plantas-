@@ -760,6 +760,11 @@ textarea.form-control { resize: vertical; min-height: 70px; }
    ===================================================================== */
 .ai-tip { font-size: .8rem; color: var(--ink-soft); text-align: center; margin-top: .9rem; }
 .ai-run { width: 100%; margin-top: 1rem; padding: 1rem; }
+.ai-test { width: 100%; margin-top: .5rem; font-size: .85rem; }
+.ai-probe { margin-top: .8rem; padding: .9rem 1rem; border: 1px solid var(--mist); border-radius: 16px; background: var(--cream); font-size: .85rem; }
+.ai-probe h4 { margin: 0 0 .5rem; font-size: .95rem; color: var(--heading); }
+.ai-probe-list { list-style: none; padding: 0; margin: 0 0 .6rem; display: grid; gap: .3rem; }
+.ai-probe .muted { margin: 0; color: var(--ink-soft); }
 .ai-text { white-space: pre-line; margin-top: .8rem; }
 .ai-moon { margin-top: 1rem; padding-top: .8rem; border-top: 1px solid var(--mist); font-size: .88rem; color: var(--sage-text); }
 .ai-via { margin-top: 1rem; font-size: .68rem; color: var(--ink-soft); opacity: .7; text-align: right; letter-spacing: .03em; }

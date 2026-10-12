@@ -26,6 +26,8 @@ export const PUSH_URL = '';
 // ==================== IAs (Cloudflare Workers) — ORDEM DE PRIORIDADE ====================
 // Cada chamada de IA começa pela primeira e, se ela não responder, passa para a próxima.
 // Para mudar a prioridade, basta reordenar a lista. As URLs terminam com "/".
+// Fotos (identificar planta / diagnóstico): o app testa sozinho quais contas enxergam imagens (botão "Testar as contas de IA"
+// na aba de IA mostra o resultado). Se já souber que uma conta é só de texto, acrescente `vision: false` nela para nunca usá-la em fotos.
 export const WORKERS = [
   { name: 'certificados-groq-proxy', url: 'https://certificados-groq-proxy.genesisgns.workers.dev/' },
   { name: 'gns91-groq-proxy',        url: 'https://gns91-groq-proxy.genesisgns.workers.dev/' },

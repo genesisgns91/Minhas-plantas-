@@ -1,5 +1,5 @@
 import { S } from './state.js';
-import { DAY_MS, daysBetween, plural } from './utils.js';
+import { DAY_MS, daysBetween, plural, compareNames } from './utils.js';
 
 export function vasesOf(sp) { return S.vases.filter(v => v.speciesId === sp.firestoreId); }
 
@@ -34,6 +34,11 @@ export function needsWater(vase, species) {
 }
 
 export function speciesOfVase(vase) { return S.species.find(s => s.firestoreId === vase.speciesId); }
+
+/** Todos os vasos em ordem alfabética: primeiro pelo nome da planta (espécie), depois pelo nome do vaso. */
+export function vasesByPlant() {
+  return [...S.vases].sort((a, b) => compareNames((speciesOfVase(a) || {}).name, (speciesOfVase(b) || {}).name) || compareNames(a.name, b.name));
+}
 
 // ==================== DASHBOARD ====================
 function relativeWhen(d) {

@@ -5,6 +5,7 @@ import {
   db, speciesCol, vasesCol, query, where, onSnapshot, doc, getDoc, getDocs, setDoc, writeBatch
 } from './firebase.js';
 import { toast, friendlyError } from './ui/feedback.js';
+import { byName } from './utils.js';
 import { renderSpeciesGrid, openSpeciesDetail } from './species.js';
 import { leaveDetailUI } from './nav.js';
 import { updateDashboard } from './dashboard.js';
@@ -21,7 +22,8 @@ const afterSpeciesHooks = [];
 export function onDataChange(kind, fn) { (kind === 'vases' ? afterVasesHooks : afterSpeciesHooks).push(fn); }
 
 function snapshotToList(snapshot) {
-  return snapshot.docs.map(d => ({ firestoreId: d.id, ...d.data() }));
+  // Ordem alfabética (pt-BR): vale para a grade de espécies, a lista de vasos, os seletores, a galeria etc.
+  return snapshot.docs.map(d => ({ firestoreId: d.id, ...d.data() })).sort(byName);
 }
 
 function onLoadError(err) {

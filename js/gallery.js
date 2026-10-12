@@ -1,7 +1,7 @@
 import { imgSrc } from './images.js';
 import { S } from './state.js';
 import { vasePhotoItems } from './lightbox.js';
-import { $, daysBetween, esc, fmtDate, plural } from './utils.js';
+import { $, daysBetween, esc, fmtDate, plural, compareNames } from './utils.js';
 import { speciesOfVase } from './care.js';
 import { setNavActive } from './nav.js';
 import { emptyPlantSvg, openSpeciesDetail } from './species.js';
@@ -68,7 +68,7 @@ export function renderGallery({ animate = false } = {}) {
     vasesWithPhotos++; totalPhotos += n;
     counts[v.speciesId] = (counts[v.speciesId] || 0) + n;
   });
-  const speciesWithPhotos = S.species.filter(sp => counts[sp.firestoreId]).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  const speciesWithPhotos = S.species.filter(sp => counts[sp.firestoreId]).sort((a, b) => compareNames(a.name, b.name));
   if (gal.species !== 'all' && !counts[gal.species]) gal.species = 'all';
 
   // Controles
@@ -95,7 +95,7 @@ export function renderGallery({ animate = false } = {}) {
   if (gal.view === 'vases') {
     const sorted = [...shownVases].sort((a, b) => {
       const sa = (speciesOfVase(a) || {}).name || '', sb = (speciesOfVase(b) || {}).name || '';
-      return sa.localeCompare(sb, 'pt-BR') || a.name.localeCompare(b.name, 'pt-BR');
+      return compareNames(sa, sb) || compareNames(a.name, b.name);
     });
     content.innerHTML = `<div class="g-vases">${sorted.map((v, i) => {
       const photos = vasePhotos(v);

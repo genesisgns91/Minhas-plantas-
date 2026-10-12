@@ -27,6 +27,19 @@ export const rand = (min, max) => min + Math.random() * (max - min);
 // ---------- Identificação ----------
 export function normText(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim(); }
 
+// ---------- Ordem alfabética (português) ----------
+// Ignora acentos e maiúsculas e entende números ("Vaso 2" vem antes de "Vaso 10"). Nomes vazios vão para o fim.
+const collator = new Intl.Collator('pt-BR', { sensitivity: 'base', numeric: true });
+export function compareNames(a, b) {
+  const x = String(a ?? '').trim(), y = String(b ?? '').trim();
+  if (!x || !y) return x ? -1 : y ? 1 : 0;
+  return collator.compare(x, y);
+}
+/** Para Array.sort: espécies e vasos pelo nome (desempate pelo nome científico). */
+export function byName(a, b) {
+  return compareNames(a && a.name, b && b.name) || compareNames(a && a.scientific, b && b.scientific);
+}
+
 /** Baixa um arquivo gerado no navegador. */
 export function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);

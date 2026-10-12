@@ -1,6 +1,6 @@
 import { S } from './state.js';
-import { $, esc, normText } from './utils.js';
-import { WORKERS, callWorkers } from './workers.js';
+import { $, esc, normText, plural } from './utils.js';
+import { WORKERS, callWorkers, testWorkers } from './workers.js';
 import { diagnoseRequest, identifyRequest } from './prompts.js';
 import { toast } from './ui/feedback.js';
 import { dataURLToBlob } from './images.js';
@@ -81,9 +81,18 @@ export async function runAI() {
   }
 }
 
+const NO_PLANT_HELP = 'Tente outra foto: de perto, com boa luz, mostrando folhas ou flores. Se você tem certeza de que há uma planta na foto, toque em “🔧 Testar as contas de IA”: pode ser que alguma conta não leia imagens.';
+
 async function runDiagnosis(buildOptions, onAttempt) {
+  const req = diagnoseRequest();
   const { data, worker } = await callWorkers('diagnose-plant', buildOptions, (d) => d && typeof d.diagnosis === 'string' && d.diagnosis.trim(), onAttempt,
-    { ...diagnoseRequest(), image: S.aiImage });
+    { ...req, image: S.aiImage });
+  if (req.judge(data) === 'negative') {
+    $('aiResult').innerHTML = `<h4>🤔 Não encontrei uma planta nessa foto</h4>
+      <p>${esc(data.diagnosis)}</p><p class="muted">${esc(NO_PLANT_HELP)}</p>
+      <div class="ai-via">via ${esc(worker)}</div>`;
+    return;
+  }
   const moon = data.moon_phase
     ? `<div class="ai-moon">🌙 Fase da lua: <b>${esc(data.moon_phase)}</b>${data.moon_tip ? ' — ' + esc(data.moon_tip) : ''}</div>` : '';
   $('aiResult').innerHTML = `
@@ -136,7 +145,7 @@ function normalizeIdentify(d) {
 
 async function runIdentify(buildOptions, onAttempt) {
   const { data, worker } = await callWorkers('identify-plant', buildOptions,
-    (d) => d && (d.is_plant === false || d.name || d.common_name || d.plant_name), onAttempt,
+    (d) => d && (d.no_image || d.is_plant === false || d.name || d.common_name || d.plant_name), onAttempt,
     { ...identifyRequest(), image: S.aiImage });
   S.lastIdentify = { ...normalizeIdentify(data), worker };
   renderIdentify();
@@ -149,7 +158,7 @@ function renderIdentify() {
 
   if (!r.is_plant) {
     el.innerHTML = `<h4>🤔 Não encontrei uma planta nessa foto</h4>
-      <p>Tente outra imagem, mais de perto e com boa luz, mostrando folhas ou flores.</p>
+      <p>${esc(NO_PLANT_HELP)}</p>
       <div class="ai-via">via ${esc(r.worker)}</div>`;
     return;
   }
@@ -233,4 +242,31 @@ export function registerFromIdentification() {
     pv.style.display = 'block';
   }
   toast('Dados preenchidos! Use ✨ para completar a ficha de cuidados.');
+}
+
+/** Testa quais contas de IA enxergam fotos (figurinha com cor e número) e mostra o resultado. */
+export async function testAiAccounts(btn) {
+  const box = $('aiProbeResult');
+  if (!box) return;
+  if (btn) btn.disabled = true;
+  box.hidden = false;
+  box.innerHTML = '<div class="loader"><i></i><i></i><i></i> <span>Testando as contas de IA… (alguns segundos)</span></div>';
+  try {
+    const res = await testWorkers();
+    const ok = res.filter(r => r.cap === true).length;
+    const rows = res.map(r => {
+      const [icon, txt] = r.cap === true ? ['✅', 'enxerga fotos']
+        : r.cap === false ? ['❌', r.note || 'não enxerga fotos (só texto) — usada só na ficha automática']
+        : ['⚠️', 'não respondeu' + (r.error ? ': ' + r.error : '')];
+      return `<li><b>${esc(r.name)}</b> — ${icon} ${esc(txt)}</li>`;
+    }).join('');
+    const foot = ok
+      ? `${plural(ok, 'conta enxerga', 'contas enxergam')} fotos e será usada para identificar e diagnosticar.`
+      : 'Nenhuma conta provou enxergar fotos. É preciso uma Worker ligada a um modelo de visão (por exemplo Gemini, ou Llama com visão no Groq — veja worker-plantas.js).';
+    box.innerHTML = `<h4>🔧 Teste das contas de IA</h4><ul class="ai-probe-list">${rows}</ul><p class="muted">${esc(foot)}</p>`;
+  } catch (err) {
+    box.innerHTML = `<p>Não foi possível testar agora: ${esc(err.message)}</p>`;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
