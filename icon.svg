@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs>
+    <linearGradient id="mkLeafUp" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4fb04a"/><stop offset=".55" stop-color="#7ddc5f"/><stop offset="1" stop-color="#b7f08a"/></linearGradient>
+    <linearGradient id="mkLeafLow" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1f7f3c"/><stop offset=".6" stop-color="#37a448"/><stop offset="1" stop-color="#63c457"/></linearGradient>
+    <linearGradient id="mkStem" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#2f8f3f"/><stop offset="1" stop-color="#7fdc63"/></linearGradient>
+    <linearGradient id="mkSoil" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9a6743"/><stop offset="1" stop-color="#5b3a26"/></linearGradient>
+    <linearGradient id="mkPot" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b9592e"/><stop offset=".35" stop-color="#e0794a"/><stop offset=".65" stop-color="#d06a3d"/><stop offset="1" stop-color="#9c4a26"/></linearGradient>
+    <linearGradient id="mkPotRim" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#c4643a"/><stop offset=".4" stop-color="#ee8a5c"/><stop offset=".7" stop-color="#dc7448"/><stop offset="1" stop-color="#a95029"/></linearGradient>
+    <linearGradient id="mkDrop" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d9f4ff"/><stop offset=".5" stop-color="#6cc4ec"/><stop offset="1" stop-color="#2f8fc8"/></linearGradient>
+    </defs><g transform="translate(64 64) scale(1.0) translate(-64 -72)">
+    <ellipse cx="64" cy="113" rx="36" ry="4.500" fill="#000" opacity=".13"/>
+    <path d="M64 100C63 86 65 75 64 62" fill="none" stroke="url(#mkStem)" stroke-width="6" stroke-linecap="round"/>
+    <path d="M26 110C31 99 46 93 64 93S97 99 102 110C92 114 78 116 64 116S36 114 26 110Z" fill="url(#mkSoil)"/>
+    <path d="M34 104C43 98 53 95.500 64 95.500" fill="none" stroke="#c9936b" stroke-opacity=".5" stroke-width="2" stroke-linecap="round"/>
+    <g class="" style="transform-origin:64px 64px;"><g transform="translate(64 64) rotate(-88) scale(0.46)"><path d="M0 0C20 -5 46 -7 70 -4C52 19 18 17 0 0Z" fill="url(#mkLeafLow)"/><path d="M0 0C5 -19 36 -31 70 -4C46 -7 20 -5 0 0Z" fill="url(#mkLeafUp)"/><path d="M3 -.5C22 -5 46 -7 65 -4.2" fill="none" stroke="#1d6b34" stroke-opacity=".55" stroke-width="1.8" stroke-linecap="round"/></g></g>
+    <g class="" style="transform-origin:63.2px 68px;"><g transform="translate(63.2 68) scale(-1 1) rotate(-24) scale(0.8)"><path d="M0 0C20 -5 46 -7 70 -4C52 19 18 17 0 0Z" fill="url(#mkLeafLow)"/><path d="M0 0C5 -19 36 -31 70 -4C46 -7 20 -5 0 0Z" fill="url(#mkLeafUp)"/><path d="M3 -.5C22 -5 46 -7 65 -4.2" fill="none" stroke="#1d6b34" stroke-opacity=".55" stroke-width="1.8" stroke-linecap="round"/><path d="M19 -4.2l8 -10M33 -5.6l9 -10M47 -6l8 -8M19 -3.6l6 9M33 -4.8l7.5 9M46 -5.4l6 7" fill="none" stroke="#1d6b34" stroke-opacity=".28" stroke-width="1.2" stroke-linecap="round"/></g></g>
+    <g class="" style="transform-origin:64.8px 66px;"><g transform="translate(64.8 66) rotate(-30) scale(0.92)"><path d="M0 0C20 -5 46 -7 70 -4C52 19 18 17 0 0Z" fill="url(#mkLeafLow)"/><path d="M0 0C5 -19 36 -31 70 -4C46 -7 20 -5 0 0Z" fill="url(#mkLeafUp)"/><path d="M3 -.5C22 -5 46 -7 65 -4.2" fill="none" stroke="#1d6b34" stroke-opacity=".55" stroke-width="1.8" stroke-linecap="round"/><path d="M19 -4.2l8 -10M33 -5.6l9 -10M47 -6l8 -8M19 -3.6l6 9M33 -4.8l7.5 9M46 -5.4l6 7" fill="none" stroke="#1d6b34" stroke-opacity=".28" stroke-width="1.2" stroke-linecap="round"/></g></g>
+    </g></svg>

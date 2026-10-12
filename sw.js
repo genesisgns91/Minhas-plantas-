@@ -1,8 +1,8 @@
 // Service worker do Minhas Plantas: abre o app mesmo sem internet e recebe as notificações (Web Push).
 // Não guarda dados do Firebase nem fotos: só os arquivos do próprio app.
-const CACHE = 'minhas-plantas-v12';
+const CACHE = 'minhas-plantas-v13';
 const PUSH_URL = new URL(self.location.href).searchParams.get('push') || '';
-const SHELL = ['./', './index.html', './style.css', './manifest.json'];
+const SHELL = ['./', './index.html', './style.css', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL).catch(() => {})).then(() => self.skipWaiting()));
@@ -52,7 +52,7 @@ async function showDailyNotification() {
     }
   } catch (e) { /* usa a mensagem padrão */ }
   await self.registration.showNotification(msg.title, {
-    body: msg.body, tag: msg.tag, icon: 'icon-192.png', badge: 'icon-192.png', lang: 'pt-BR', data: { tab: 'agenda' }
+    body: msg.body, tag: msg.tag, icon: 'icon-192.png', badge: 'badge-96.png', lang: 'pt-BR', data: { tab: 'agenda' }
   });
 }
 

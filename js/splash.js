@@ -7,8 +7,8 @@
 const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const full = document.documentElement.dataset.splash === 'full';
 
-const MIN_MS = window.__TEST__ ? 0 : reduced ? (full ? 700 : 300) : (full ? 4200 : 800);
-const HOLD_MS = window.__TEST__ || reduced ? 0 : (full ? 1500 : 250);   // cena final parada
+const MIN_MS = window.__TEST__ ? 0 : reduced ? (full ? 700 : 300) : (full ? 4800 : 900);
+const HOLD_MS = window.__TEST__ || reduced ? 0 : (full ? 1200 : 250);   // cena final parada
 const CAP_MS = 12000;                                                    // nunca prende o app além disso
 const OUT_MS = full ? 760 : 300;
 const SKIP_AFTER_MS = 1200;                                              // ignora toques acidentais no início
