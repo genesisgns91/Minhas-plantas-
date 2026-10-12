@@ -5,7 +5,7 @@ import { DEFAULT_FERT_DAYS, DEFAULT_PRUNE_DAYS, needsWater, petToxicityIcon, vas
 import { leaveDetailUI, showView } from './nav.js';
 import { renderVasesForSpecies } from './vases.js';
 import { closeActiveDrawer, openDrawer } from './ui/drawers.js';
-import { addSpecies, patchSpecies, deleteSpeciesCascade } from './repo.js';
+import { addSpecies, addVase, patchSpecies, deleteSpeciesCascade } from './repo.js';
 import { imgSrc, storePhoto } from './images.js';
 import { friendlyError, toast } from './ui/feedback.js';
 import { petalRain } from './ui/fx.js';
@@ -248,6 +248,7 @@ export async function saveSpecies(event) {
 
   btn.disabled = true;
   const label = btn.textContent;
+  let vaseFailed = false;
 
   try {
     if (S.speciePhoto) {
@@ -260,13 +261,23 @@ export async function saveSpecies(event) {
     } else {
       if (!speciesData.photo) speciesData.photo = '';
       speciesData.createdAt = new Date().toISOString();
-      await addSpecies(speciesData);
+      const ref = await addSpecies(speciesData);
+      // Toda espécie nova já nasce com um vaso (pode ser editado ou excluído depois).
+      try {
+        await addVase({
+          speciesId: ref.id, name: 'Vaso 1', icon: '🪴', size: '', photo: '',
+          photoHistory: [], history: [], createdAt: speciesData.createdAt
+        });
+      } catch (e) {
+        vaseFailed = true;
+        console.warn('Espécie criada, mas não foi possível criar o vaso inicial:', e);
+      }
     }
     $('formSpecies').reset();
     $('speciePhotoPreview').style.display = 'none';
     S.speciePhoto = null;
     closeActiveDrawer();
-    toast(editId ? 'Espécie atualizada 🌿' : 'Espécie cadastrada 🌱');
+    toast(editId ? 'Espécie atualizada 🌿' : vaseFailed ? 'Espécie cadastrada 🌱 (adicione um vaso nela)' : 'Espécie cadastrada com o “Vaso 1” 🌱 — edite ou exclua quando quiser');
     if (!editId) petalRain(16);
   } catch (err) {
     toast('Erro ao salvar espécie: ' + friendlyError(err), 'error');
