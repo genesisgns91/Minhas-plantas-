@@ -44,12 +44,13 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Minhas Plantas" />
-  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png" />
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
-  <link rel="icon" type="image/svg+xml" href="icon.svg" />
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="48x48" href="favicon-48.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+  <link rel="shortcut icon" href="favicon.ico" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
@@ -60,22 +61,14 @@
 <body class="auth-loading">
   <!-- Gradientes e logo compartilhados (referenciados por <use> e pelas animações) -->
   <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
-    <linearGradient id="mkLeafUp" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4fb04a"/><stop offset=".55" stop-color="#7ddc5f"/><stop offset="1" stop-color="#b7f08a"/></linearGradient>
-    <linearGradient id="mkLeafLow" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1f7f3c"/><stop offset=".6" stop-color="#37a448"/><stop offset="1" stop-color="#63c457"/></linearGradient>
-    <linearGradient id="mkStem" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#2f8f3f"/><stop offset="1" stop-color="#7fdc63"/></linearGradient>
-    <linearGradient id="mkSoil" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9a6743"/><stop offset="1" stop-color="#5b3a26"/></linearGradient>
+    <linearGradient id="mkLeafUp" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5f9145"/><stop offset=".55" stop-color="#6c9c4a"/><stop offset="1" stop-color="#86b45c"/></linearGradient>
+    <linearGradient id="mkLeafLow" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2d613f"/><stop offset=".6" stop-color="#356b45"/><stop offset="1" stop-color="#4a8a4c"/></linearGradient>
+    <linearGradient id="mkStem" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#2d6a3f"/><stop offset="1" stop-color="#4f8f47"/></linearGradient>
+    <linearGradient id="mkSoil" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#94604a"/><stop offset="1" stop-color="#5e3a2e"/></linearGradient>
     <linearGradient id="mkPot" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b9592e"/><stop offset=".35" stop-color="#e0794a"/><stop offset=".65" stop-color="#d06a3d"/><stop offset="1" stop-color="#9c4a26"/></linearGradient>
     <linearGradient id="mkPotRim" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#c4643a"/><stop offset=".4" stop-color="#ee8a5c"/><stop offset=".7" stop-color="#dc7448"/><stop offset="1" stop-color="#a95029"/></linearGradient>
     <linearGradient id="mkDrop" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d9f4ff"/><stop offset=".5" stop-color="#6cc4ec"/><stop offset="1" stop-color="#2f8fc8"/></linearGradient>
-    <radialGradient id="mkShadow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#000" stop-opacity=".42"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient><radialGradient id="mkGlow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#e8ffd2" stop-opacity=".55"/><stop offset=".55" stop-color="#9be08a" stop-opacity=".15"/><stop offset="1" stop-color="#9be08a" stop-opacity="0"/></radialGradient><symbol id="mpMark" viewBox="0 0 128 128"><g transform="translate(64 64) scale(1.0) translate(-64 -72)">
-    <ellipse cx="64" cy="113" rx="36" ry="4.500" fill="#000" opacity=".13"/>
-    <path d="M64 100C63 86 65 75 64 62" fill="none" stroke="url(#mkStem)" stroke-width="6" stroke-linecap="round"/>
-    <path d="M26 110C31 99 46 93 64 93S97 99 102 110C92 114 78 116 64 116S36 114 26 110Z" fill="url(#mkSoil)"/>
-    <path d="M34 104C43 98 53 95.500 64 95.500" fill="none" stroke="#c9936b" stroke-opacity=".5" stroke-width="2" stroke-linecap="round"/>
-    <g class="" style="transform-origin:64px 64px;"><g transform="translate(64 64) rotate(-88) scale(0.46)"><path d="M0 0C20 -5 46 -7 70 -4C52 19 18 17 0 0Z" fill="url(#mkLeafLow)"/><path d="M0 0C5 -19 36 -31 70 -4C46 -7 20 -5 0 0Z" fill="url(#mkLeafUp)"/><path d="M3 -.5C22 -5 46 -7 65 -4.2" fill="none" stroke="#1d6b34" stroke-opacity=".55" stroke-width="1.8" stroke-linecap="round"/></g></g>
-    <g class="" style="transform-origin:63.2px 68px;"><g transform="translate(63.2 68) scale(-1 1) rotate(-24) scale(0.8)"><path d="M0 0C20 -5 46 -7 70 -4C52 19 18 17 0 0Z" fill="url(#mkLeafLow)"/><path d="M0 0C5 -19 36 -31 70 -4C46 -7 20 -5 0 0Z" fill="url(#mkLeafUp)"/><path d="M3 -.5C22 -5 46 -7 65 -4.2" fill="none" stroke="#1d6b34" stroke-opacity=".55" stroke-width="1.8" stroke-linecap="round"/><path d="M19 -4.2l8 -10M33 -5.6l9 -10M47 -6l8 -8M19 -3.6l6 9M33 -4.8l7.5 9M46 -5.4l6 7" fill="none" stroke="#1d6b34" stroke-opacity=".28" stroke-width="1.2" stroke-linecap="round"/></g></g>
-    <g class="" style="transform-origin:64.8px 66px;"><g transform="translate(64.8 66) rotate(-30) scale(0.92)"><path d="M0 0C20 -5 46 -7 70 -4C52 19 18 17 0 0Z" fill="url(#mkLeafLow)"/><path d="M0 0C5 -19 36 -31 70 -4C46 -7 20 -5 0 0Z" fill="url(#mkLeafUp)"/><path d="M3 -.5C22 -5 46 -7 65 -4.2" fill="none" stroke="#1d6b34" stroke-opacity=".55" stroke-width="1.8" stroke-linecap="round"/><path d="M19 -4.2l8 -10M33 -5.6l9 -10M47 -6l8 -8M19 -3.6l6 9M33 -4.8l7.5 9M46 -5.4l6 7" fill="none" stroke="#1d6b34" stroke-opacity=".28" stroke-width="1.2" stroke-linecap="round"/></g></g>
-    </g></symbol></defs></svg>
+    <radialGradient id="mkShadow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#000" stop-opacity=".42"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient><radialGradient id="mkGlow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#e8ffd2" stop-opacity=".55"/><stop offset=".55" stop-color="#9be08a" stop-opacity=".15"/><stop offset="1" stop-color="#9be08a" stop-opacity="0"/></radialGradient><symbol id="mpMark" viewBox="0 0 128 128"><image href="logo-mark.png" x="0" y="0" width="128" height="128"/></symbol></defs></svg>
   <a class="skip-link" href="#main">Pular para o conteúdo</a>
 
   <!-- Abertura do app: vaso, gota e planta crescendo (CSS puro; toque para pular) -->
